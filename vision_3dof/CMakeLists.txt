@@ -39,20 +39,6 @@ else()
 endif()
 
 
-find_package(OpenCV  REQUIRED)
-if(OpenCV_FOUND)
-    message(STATUS "OpenCV library status:")
-    message(STATUS "    version: ${OpenCV_VERSION}")
-    message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
-    message(STATUS "    lib : ${OpenCV_LIBS}")
-    message(STATUS "    install path: ${OpenCV_INSTALL_PATH}")
-    link_directories(${OpenCV_INSTALL_PATH}/lib)
-    link_directories(${OpenCV_INSTALL_PATH}/share/OpenCV/3rdparty)
-    include_directories(${OpenCV_INCLUDE_DIRS})
-    set(LINK_LIBS ${LINK_LIBS} ${OpenCV_LIBS})
-else()
-    message(FATA_ERROR "Do not find OpenCV")
-endif()
 
 # Orbec
 set(OrbbecSDK_DIR ${CMAKE_SOURCE_DIR}/3rd-party/OrbbecSDK-2.3.5)
