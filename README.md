@@ -18,3 +18,9 @@
 
     orbbecsdk
     2.3.5
+
+
+
+# 依赖
+sudo apt install libcurl4-openssl-dev
+sudo apt install libboost-dev libboost-filesystem-dev
