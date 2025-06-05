@@ -61,7 +61,6 @@ set(XT_COMPILE_FLAGS "${XT_COMPILE_FLAGS} -fstack-protector-strong")
 set(CMAKE_C_FLAGS    "${XT_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
-# aux_source_directory(${PROJECT_SOURCE_DIR}/common               COMMON_SRC_FILES)
 aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec    ORBBEC_SRC_FILES)
 
 

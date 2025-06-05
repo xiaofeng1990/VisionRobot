@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/include/opencv4",
-                "${workspaceFolder}"
+                "${workspaceFolder}/vision_3dof/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

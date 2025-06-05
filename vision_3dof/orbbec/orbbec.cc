@@ -77,12 +77,13 @@ std::shared_ptr<ob::Device> Orbbec::GetDevice(int index)
     // Get the number of connected devices
     if (dev_list->deviceCount() == 0)
     {
-        // XT_LOGT(ERROR, TAG, "Device not found! ");
+
+        std::cerr << "Device not found!" << std::endl;
         return nullptr;
     }
     if (index > dev_list->deviceCount())
     {
-        // XT_LOGT(ERROR, TAG, "index %d out of device range %d! ", index, dev_list->deviceCount());
+        std::cerr << "index " << index << " out of device range " << dev_list->deviceCount() << "!" << std::endl;
         return nullptr;
     }
 
@@ -93,19 +94,23 @@ std::shared_ptr<ob::Device> Orbbec::GetDevice(int index)
     auto dev_info = dev->getDeviceInfo();
 
     // Get the name of the device
-    // XT_LOGT(INFO, TAG, " **************************************** ");
-    // XT_LOGT(INFO, TAG, "Device name: %s", dev_info->name());
+    std::cout << " **************************************** " << std::endl;
+    std::cout << "Device name: " << dev_info->name() << std::endl;
+
     // Get the pid, vid, uid of the device
-    // XT_LOGT(INFO, TAG, "Device pid:: %d vid: %d, uid: %s", dev_info->pid(), dev_info->vid(), dev_info->uid());
+    std::cout << "Device pid:: " << dev_info->pid() << " vid: " << dev_info->vid() << ", uid: " << dev_info->uid() << std::endl;
+
     // By getting the firmware version number of the device
     auto fwVer = dev_info->firmwareVersion();
-    // XT_LOGT(INFO, TAG, "Firmware version: %s", fwVer);
+    std::cout << "Firmware version: " << fwVer << std::endl;
+
     // By getting the serial number of the device
     auto sn = dev_info->serialNumber();
-    // XT_LOGT(INFO, TAG, "Serial number: %s", sn);
+    std::cout << "Serial number: " << sn << std::endl;
+
     // By getting the connection type of the device
     auto connectType = dev_info->connectionType();
-    // XT_LOGT(INFO, TAG, "ConnectionType: %s", connectType);
+    std::cout << "ConnectionType: " << connectType << std::endl;
 
     return dev;
 }
