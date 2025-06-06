@@ -7,7 +7,7 @@ int main()
     Orbbec orbbec;
     if (!orbbec.GetDevice(0))
     {
-        std::cerr << "Failed to open device" << std::endl;
+        std::cerr << "failed to open device" << std::endl;
         return -1;
     }
     return 0;
