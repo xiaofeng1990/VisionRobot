@@ -162,15 +162,15 @@ bool Orbbec::CloseDevice()
 
 bool Orbbec::OpenDevice(std::string serial_number)
 {
-    std::shared_ptr<ob::Device> device = Orbbec::GetDevice(serial_number);
-    if (device == nullptr)
+    device_ = Orbbec::GetDevice(serial_number);
+    if (device_ == nullptr)
     {
         // XT_LOGT(INFO, TAG, "open orbbec %s failed", serial_number.c_str());
         is_open_.store(false, std::memory_order_release);
         return false;
     }
 
-    pipeline_ = std::make_shared<ob::Pipeline>(device);
+    pipeline_ = std::make_shared<ob::Pipeline>(device_);
     // Create a context, for getting devices and sensors
     context_ = std::make_shared<ob::Context>();
     // Activate device clock synchronization
@@ -179,13 +179,16 @@ bool Orbbec::OpenDevice(std::string serial_number)
     // Create a config and enable the depth and color streams.
     config_ = std::make_shared<ob::Config>();
     // Enable the color and depth streams.
-    config_->enableStream(OB_STREAM_COLOR);
-    config_->enableStream(OB_STREAM_DEPTH);
+    // config_->enableStream(OB_STREAM_COLOR);
+    // config_->enableStream(OB_STREAM_DEPTH);
+    // enable depth and color streams with specified format
+    config_->enableVideoStream(OB_STREAM_DEPTH, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_Y16);
+    config_->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_RGB);
 
-    config_->enableVideoStream(OB_STREAM_DEPTH, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
+    // config_->enableVideoStream(OB_STREAM_DEPTH, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
     //                   uint32_t fps = OB_FPS_ANY, OBFormat format = OB_FORMAT_ANY);
 // Enable the IR stream.
-#if 1
+#if 0
     // config_->enableStream(OB_STREAM_IR_LEFT);
     // config_->enableStream(OB_STREAM_IR_RIGHT);
     config_->enableVideoStream(OB_STREAM_IR_LEFT, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
@@ -207,9 +210,10 @@ bool Orbbec::OpenDevice(std::string serial_number)
             for (uint32_t i = 0; i < irLeftProfiles->getCount(); ++i)
             {
                 auto profile = irLeftProfiles->getProfile(i);
-                XT_LOGT(INFO, TAG, "IR(Left) profile %d: width: %d, height: %d, fps: %d, format: %d", i,
-                        profile->as<ob::VideoStreamProfile>()->width(), profile->as<ob::VideoStreamProfile>()->height(),
-                        profile->as<ob::VideoStreamProfile>()->fps(), profile->as<ob::VideoStreamProfile>()->format());
+
+                printf("IR(Left) profile %d: width: %d, height: %d, fps: %d, format: %d \n", i,
+                       profile->as<ob::VideoStreamProfile>()->width(), profile->as<ob::VideoStreamProfile>()->height(),
+                       profile->as<ob::VideoStreamProfile>()->fps(), profile->as<ob::VideoStreamProfile>()->format());
             }
             // auto irLeftProfile =
             //     irLeftProfiles->getVideoStreamProfile(OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FORMAT_ANY, OB_FPS_ANY);
@@ -410,4 +414,120 @@ bool Orbbec::GetIrFrame(std::vector<cv::Mat> &ir_mat_list)
         // XT_LOGT(INFO, TAG, "read ir frame success, count %d", read_count);
     }
     return ret;
+}
+
+std::vector<OBPropertyItem> Orbbec::GetPropertyList()
+{
+    std::vector<OBPropertyItem> property_vec;
+    property_vec.clear();
+    if (!device_)
+        return property_vec;
+    uint32_t size = device_->getSupportedPropertyCount();
+    for (uint32_t i = 0; i < size; i++)
+    {
+        OBPropertyItem property_item = device_->getSupportedProperty(i);
+        if (IsPrimaryTypeProperty(property_item) && property_item.permission != OB_PERMISSION_DENY)
+        {
+            property_vec.push_back(property_item);
+        }
+    }
+    return property_vec;
+}
+
+// Print a list of supported properties
+void Orbbec::PrintfPropertyList()
+{
+    std::vector<OBPropertyItem> property_list = GetPropertyList();
+    std::cout << "size: " << property_list.size() << std::endl;
+    if (property_list.empty())
+    {
+        std::cout << "No supported property!" << std::endl;
+    }
+    std::cout << "\n------------------------------------------------------------------------\n";
+    for (size_t i = 0; i < property_list.size(); i++)
+    {
+        auto property_item = property_list[i];
+        std::string strRange = "";
+
+        OBIntPropertyRange int_range;
+        OBFloatPropertyRange float_range;
+        switch (property_item.type)
+        {
+        case OB_BOOL_PROPERTY:
+            strRange = "Bool value(min:0, max:1, step:1)";
+            break;
+        case OB_INT_PROPERTY:
+        {
+            try
+            {
+                int_range = device_->getIntPropertyRange(property_item.id);
+                strRange = "Int value(min:" + std::to_string(int_range.min) + ", max:" + std::to_string(int_range.max) + ", step:" + std::to_string(int_range.step) + ")";
+            }
+            catch (...)
+            {
+                std::cout << "get int property range failed." << std::endl;
+            }
+        }
+        break;
+        case OB_FLOAT_PROPERTY:
+            try
+            {
+                float_range = device_->getFloatPropertyRange(property_item.id);
+                strRange = "Float value(min:" + std::to_string(float_range.min) + ", max:" + std::to_string(float_range.max) + ", step:" + std::to_string(float_range.step) + ")";
+            }
+            catch (...)
+            {
+                std::cout << "get float property range failed." << std::endl;
+            }
+            break;
+        default:
+            break;
+        }
+
+        std::cout.setf(std::ios::right);
+        std::cout.fill('0');
+        std::cout.width(2);
+        std::cout << i << ". ";
+        std::cout << property_item.name << "(" << (int)property_item.id << ")";
+        std::cout << ", permission=" << PermissionTypeToString(property_item.permission) << ", range=" << strRange << std::endl;
+    }
+    std::cout << "------------------------------------------------------------------------\n";
+}
+
+bool Orbbec::IsPrimaryTypeProperty(OBPropertyItem propertyItem)
+{
+    return propertyItem.type == OB_INT_PROPERTY || propertyItem.type == OB_FLOAT_PROPERTY || propertyItem.type == OB_BOOL_PROPERTY;
+}
+
+std::string Orbbec::PermissionTypeToString(OBPermissionType permission)
+{
+    switch (permission)
+    {
+    case OB_PERMISSION_READ:
+        return "R/_";
+    case OB_PERMISSION_WRITE:
+        return "_/W";
+    case OB_PERMISSION_READ_WRITE:
+        return "R/W";
+
+    default:
+        break;
+    }
+    return "_/_";
+}
+
+void Orbbec::EnableFrameSync(bool sync)
+{
+    if (!pipeline_)
+        return;
+    if (sync)
+    {
+        // enable frame sync inside the pipeline, which is synchronized by frame timestamp
+        pipeline_->enableFrameSync();
+    }
+    else
+    {
+        // turn off sync
+        pipeline_->disableFrameSync();
+    }
 }

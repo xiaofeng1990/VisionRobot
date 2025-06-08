@@ -50,8 +50,22 @@ else()
     message(FATA_ERROR "Do not find OpenCV")
 endif()
 
+# Orbec
+set(OrbbecSDK_DIR ${CMAKE_SOURCE_DIR}/3rd-party/OrbbecSDK-2.3.5)
+find_package(OrbbecSDK REQUIRED)
+if(OrbbecSDK_FOUND)
+  message(STATUS "Orbec library status:")
+  message(STATUS "    include path: ${OrbbecSDK_INCLUDE_DIRS}")
+  message(STATUS "    lib path: ${OrbbecSDK_LIBS_DIR}")
+  message(STATUS "    lib: ${OrbbecSDK_LIBS}")
+  # message(STATUS     OrbbecSDK::OrbbecSDK)
+else(OrbbecSDK_FOUND)
+  message(FATA_ERROR "Do not find Orbec")
+endif()
+
 
 include_directories(.)
 aux_source_directory(${PROJECT_SOURCE_DIR}/common               COMMON_SRC_FILES)
 
 add_subdirectory(vision_3dof)
+add_subdirectory(orbbec_test)

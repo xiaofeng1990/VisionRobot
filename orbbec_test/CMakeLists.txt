@@ -38,9 +38,6 @@ else()
     set(XT_GIT_ONELINE "unknow")
 endif()
 
-
-
-
 message(STATUS "LINK_LIBS " ${LINK_LIBS})
 
 set(XT_COMPILE_FLAGS "-g -O0 -ffunction-sections -fdata-sections -funwind-tables")
@@ -49,23 +46,4 @@ set(XT_COMPILE_FLAGS "${XT_COMPILE_FLAGS} -fstack-protector-strong")
 set(CMAKE_C_FLAGS    "${XT_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec    ORBBEC_SRC_FILES)
-
-
-include_directories(.)
-
-# include_directories(/usr/include/freetype2)
-cuda_add_executable(${TARGET_NAME} 
-    main.cc
-    ${COMMON_SRC_FILES}
-    ${ORBBEC_SRC_FILES}
-    )
-
-target_link_libraries(${TARGET_NAME} OrbbecSDK::OrbbecSDK -lboost_filesystem -lboost_system
-                    ${LINK_LIBS})
-
-# install(FILES ${PADDLE_LIB}/paddle/lib/libpaddle_inference.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-# set_target_properties(${TARGET_NAME}  PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags,-rpath,${CMAKE_INSTALL_PREFIX}/lib:${FASTDEPLOY_ASCEND_DIR}/third_libs/install/opencv/lib")
-set_target_properties(${TARGET_NAME}  PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags,-rpath,${CMAKE_INSTALL_PREFIX}/lib")
-
-install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+add_subdirectory(sync_align)

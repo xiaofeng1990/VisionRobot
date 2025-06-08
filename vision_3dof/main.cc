@@ -10,5 +10,11 @@ int main()
         std::cerr << "failed to open device" << std::endl;
         return -1;
     }
+    std::string serial_number = "CP3294Y0003N";
+    orbbec.OpenDevice(serial_number);
+    orbbec.PrintfPropertyList();
+    cv::Mat mat;
+    orbbec.GetColorFrame(mat);
+    cv::imwrite("./color.jpg", mat);
     return 0;
 }
