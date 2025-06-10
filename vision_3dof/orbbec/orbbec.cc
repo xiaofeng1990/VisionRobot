@@ -170,29 +170,28 @@ bool Orbbec::OpenDevice(std::string serial_number)
         return false;
     }
 
-    pipeline_ = std::make_shared<ob::Pipeline>(device_);
+    pipeline_ = std::make_shared<ob::Pipeline>();
     // Create a context, for getting devices and sensors
     context_ = std::make_shared<ob::Context>();
     // Activate device clock synchronization
     context_->enableDeviceClockSync(0);
 
     // Create a config and enable the depth and color streams.
-    config_ = std::make_shared<ob::Config>();
+    config_ = Orbbec::CreateHwD2CAlignConfig();
+    // config_ = std::make_shared<ob::Config>();
     // Enable the color and depth streams.
     // config_->enableStream(OB_STREAM_COLOR);
-    // config_->enableStream(OB_STREAM_DEPTH);
-    // enable depth and color streams with specified format
-    config_->enableVideoStream(OB_STREAM_DEPTH, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_Y16);
-    config_->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_RGB);
+    // config_->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
+    // config_->enableVideoStream(OB_STREAM_DEPTH, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
 
-    // config_->enableVideoStream(OB_STREAM_DEPTH, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
-    //                   uint32_t fps = OB_FPS_ANY, OBFormat format = OB_FORMAT_ANY);
+    // config_->enableStream(OB_STREAM_COLOR);
+    // config_->enableStream(OB_STREAM_DEPTH);
 // Enable the IR stream.
-#if 0
+#if 1
     // config_->enableStream(OB_STREAM_IR_LEFT);
     // config_->enableStream(OB_STREAM_IR_RIGHT);
-    config_->enableVideoStream(OB_STREAM_IR_LEFT, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
-    config_->enableVideoStream(OB_STREAM_IR_RIGHT, 1280, 800, OB_FPS_ANY, OB_FORMAT_ANY);
+    // config_->enableVideoStream(OB_STREAM_IR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
+    // config_->enableVideoStream(OB_STREAM_IR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
 #else
     auto irLeftProfiles = pipeline_->getStreamProfileList(OB_SENSOR_IR_LEFT);
     if (irLeftProfiles == nullptr)
@@ -239,17 +238,19 @@ bool Orbbec::OpenDevice(std::string serial_number)
         std::cout << "IR(Right) stream not found!" << std::endl;
     }
 #endif
-    // Set the frame aggregate output mode to all type frame require.
-    config_->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE);
     format_onverter_ = std::make_shared<ob::FormatConvertFilter>();
+    // config_->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE);
     // Start the pipeline.
     pipeline_->enableFrameSync();
     pipeline_->start(config_);
-    auto cameraParam = pipeline_->getCameraParam();
+    for (int i = 0; i < 15; ++i)
+    {
+        auto lost = pipeline_->waitForFrameset(100);
+    }
     is_open_.store(true, std::memory_order_release);
     return true;
 }
-bool Orbbec::GetColorFrame(cv::Mat &mat)
+bool Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
 {
     if (!is_open_.load(std::memory_order_acquire))
     {
@@ -257,68 +258,47 @@ bool Orbbec::GetColorFrame(cv::Mat &mat)
         return false;
     }
     int read_count = 0;
-    while (read_count < max_read_count_)
+    if (frame_set == nullptr)
     {
-        // Wait for frameSet from the pipeline.
-        std::shared_ptr<ob::FrameSet> frameSet = pipeline_->waitForFrameset(100);
-        if (!frameSet)
-        {
-            // XT_LOGT(WARN, TAG, "No color frames received in 100ms...");
-            read_count++;
-            continue;
-        }
-        // get color frame from frameset.
-        // auto colorFrame = frameSet->colorFrame();
-        auto color_frame = frameSet->getFrame(OB_FRAME_COLOR)->as<ob::ColorFrame>();
+        std::cout << "frame_set is null" << std::endl;
+        return false;
+    }
 
-        // Convert the color frame to RGB format.
-        if (color_frame->format() != OB_FORMAT_RGB)
-        {
-            if (color_frame->format() == OB_FORMAT_MJPG)
-            {
-                format_onverter_->setFormatConvertType(FORMAT_MJPG_TO_RGB);
-            }
-            else if (color_frame->format() == OB_FORMAT_UYVY)
-            {
-                format_onverter_->setFormatConvertType(FORMAT_UYVY_TO_RGB);
-            }
-            else if (color_frame->format() == OB_FORMAT_YUYV)
-            {
-                format_onverter_->setFormatConvertType(FORMAT_YUYV_TO_RGB);
-            }
-            else
-            {
-                // XT_LOGT(WARN, TAG, "Color format is not support!");
-                continue;
-                read_count++;
-            }
-            color_frame = format_onverter_->process(color_frame)->as<ob::ColorFrame>();
-        }
+    // get color frame from frameset.
+    // auto colorFrame = frameSet->colorFrame();
+    frame_set->getType();
+    auto color_frame = frame_set->getFrame(OB_FRAME_COLOR)->as<ob::ColorFrame>();
 
-        // Processed the color frames to BGR format, use OpenCV to save to disk.
-        format_onverter_->setFormatConvertType(FORMAT_RGB_TO_BGR);
+    // Convert the color frame to RGB format.
+    if (color_frame->format() != OB_FORMAT_RGB)
+    {
+        if (color_frame->format() == OB_FORMAT_MJPG)
+        {
+            format_onverter_->setFormatConvertType(FORMAT_MJPG_TO_RGB);
+        }
+        else if (color_frame->format() == OB_FORMAT_UYVY)
+        {
+            format_onverter_->setFormatConvertType(FORMAT_UYVY_TO_RGB);
+        }
+        else if (color_frame->format() == OB_FORMAT_YUYV)
+        {
+            format_onverter_->setFormatConvertType(FORMAT_YUYV_TO_RGB);
+        }
+        else
+        {
+            std::cout << "Color format is not support!" << std::endl;
+            return false;
+        }
         color_frame = format_onverter_->process(color_frame)->as<ob::ColorFrame>();
+    }
 
-        std::vector<int> params;
-        params.push_back(cv::IMWRITE_PNG_COMPRESSION);
-        params.push_back(0);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY_DEFAULT);
-        cv::Mat color_raw_mat(color_frame->height(), color_frame->width(), CV_8UC3, color_frame->data());
-        color_raw_mat.copyTo(mat);
-        break;
-    }
-    bool ret = false;
-    if (read_count >= max_read_count_)
-    {
-        // XT_LOGT(ERROR, TAG, "read color frame failed count %d out of range %d", read_count, max_read_count_);
-    }
-    else
-    {
-        ret = true;
-        // XT_LOGT(INFO, TAG, "read color frame success, count %d", read_count);
-    }
-    return ret;
+    // Processed the color frames to BGR format, use OpenCV to save to disk.
+    format_onverter_->setFormatConvertType(FORMAT_RGB_TO_BGR);
+    color_frame = format_onverter_->process(color_frame)->as<ob::ColorFrame>();
+
+    cv::Mat color_raw_mat(color_frame->height(), color_frame->width(), CV_8UC3, color_frame->data());
+    color_raw_mat.copyTo(mat);
+    return true;
 }
 
 bool Orbbec::GetDepthFrame(cv::Mat &mat)
@@ -347,12 +327,6 @@ bool Orbbec::GetDepthFrame(cv::Mat &mat)
         }
         auto depth_frame = frameSet->getFrame(OB_FRAME_DEPTH)->as<ob::DepthFrame>();
 
-        std::vector<int> params;
-        params.push_back(cv::IMWRITE_PNG_COMPRESSION);
-        params.push_back(0);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY_DEFAULT);
-
         cv::Mat depth_mat(depth_frame->height(), depth_frame->width(), CV_16UC1, depth_frame->data());
         depth_mat.copyTo(mat);
         break;
@@ -368,6 +342,30 @@ bool Orbbec::GetDepthFrame(cv::Mat &mat)
         // XT_LOGT(INFO, TAG, "read depth frame success, count %d", read_count);
     }
     return ret;
+}
+
+std::shared_ptr<ob::FrameSet> Orbbec::GetFrameSet()
+{
+    if (!is_open_.load(std::memory_order_acquire))
+    {
+        // XT_LOGT(ERROR, TAG, "orbbec device not open");
+        return nullptr;
+    }
+    int read_count = 0;
+    while (read_count < max_read_count_)
+    {
+        // Wait for frameSet from the pipeline.
+        std::shared_ptr<ob::FrameSet> frame_set = pipeline_->waitForFrameset(100);
+        if (!frame_set)
+        {
+            // XT_LOGT(WARN, TAG, "No depth frames received in 100ms...");
+            read_count++;
+            continue;
+        }
+        return frame_set;
+    }
+
+    return nullptr;
 }
 
 bool Orbbec::GetIrFrame(std::vector<cv::Mat> &ir_mat_list)
@@ -391,11 +389,6 @@ bool Orbbec::GetIrFrame(std::vector<cv::Mat> &ir_mat_list)
         }
         auto left_frame = frameSet->getFrame(OB_FRAME_IR_LEFT)->as<ob::IRFrame>();
         auto right_frame = frameSet->getFrame(OB_FRAME_IR_RIGHT)->as<ob::IRFrame>();
-        std::vector<int> params;
-        params.push_back(cv::IMWRITE_PNG_COMPRESSION);
-        params.push_back(0);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY);
-        params.push_back(cv::IMWRITE_PNG_STRATEGY_DEFAULT);
 
         cv::Mat left_mat(left_frame->height(), left_frame->width(), CV_8UC1, left_frame->data());
         cv::Mat right_mat(right_frame->height(), right_frame->width(), CV_8UC1, right_frame->data());
@@ -416,6 +409,49 @@ bool Orbbec::GetIrFrame(std::vector<cv::Mat> &ir_mat_list)
     return ret;
 }
 
+bool Orbbec::Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frame_set)
+{
+    // Get the color frame and check its validity
+    auto color_frame = frame_set->getFrame(OB_FRAME_COLOR);
+
+    // Get the depth frame and check its validity
+    auto depth_frame = frame_set->getFrame(OB_FRAME_DEPTH);
+
+    // Get the width and height of the color and depth frames
+    auto depth_frame_width = depth_frame->as<ob::VideoFrame>()->getWidth();
+    auto depth_frame_height = depth_frame->as<ob::VideoFrame>()->getHeight();
+
+    // Get the stream profiles for the color and depth frames
+    auto color_profile = color_frame->getStreamProfile();
+    auto depth_profile = depth_frame->getStreamProfile();
+    auto extrinsicD2C = depth_profile->getExtrinsicTo(color_profile);
+
+    // Get the intrinsic and distortion parameters for the color and depth streams
+    auto depth_intrinsic = depth_profile->as<ob::VideoStreamProfile>()->getIntrinsic();
+    // Access the depth data from the frame
+    uint16_t *pDepthData = (uint16_t *)depth_frame->getData();
+    uint16_t convertAreaWidth = 3;
+    uint16_t convertAreaHeight = 3;
+
+    // Get the depth value of the current pixel
+    float depth_value = (float)pDepthData[static_cast<uint16_t>(source.y) * depth_frame_width + static_cast<uint16_t>(source.x)];
+    if (depth_value == 0)
+    {
+        std::cout << "The depth value is 0, so it's recommended to point the camera at a flat surface" << std::endl;
+        return false;
+    }
+    bool result = ob::CoordinateTransformHelper::transformation2dto3d(source, depth_value, depth_intrinsic, extrinsicD2C, &target);
+    if (!result)
+    {
+        return false;
+    }
+    PrintRuslt("2d to 3D: pixel coordinates and depth transform to point in 3D space", source, target, depth_value);
+    return true;
+}
+void Orbbec::PrintRuslt(std::string msg, OBPoint2f source, OBPoint3f target, float depth_value)
+{
+    std::cout << msg << ":" << "depth " << depth_value << " (" << source.x << ", " << source.y << ") -> (" << target.x << ", " << target.y << ", " << target.z << ")" << std::endl;
+}
 std::vector<OBPropertyItem> Orbbec::GetPropertyList()
 {
     std::vector<OBPropertyItem> property_vec;
@@ -530,4 +566,67 @@ void Orbbec::EnableFrameSync(bool sync)
         // turn off sync
         pipeline_->disableFrameSync();
     }
+}
+
+bool Orbbec::CheckIfSupportHDW2CAlign(std::shared_ptr<ob::StreamProfile> color_stream_profile, std::shared_ptr<ob::StreamProfile> depth_sream_frofile)
+{
+    auto hwD2CSupportedDepthStreamProfiles = pipeline_->getD2CDepthProfileList(color_stream_profile, ALIGN_D2C_HW_MODE);
+    if (hwD2CSupportedDepthStreamProfiles->count() == 0)
+    {
+        return false;
+    }
+
+    // Iterate through the supported depth stream profiles and check if there is a match with the given depth stream profile
+    auto depthVsp = depth_sream_frofile->as<ob::VideoStreamProfile>();
+    auto count = hwD2CSupportedDepthStreamProfiles->getCount();
+    for (uint32_t i = 0; i < count; i++)
+    {
+        auto sp = hwD2CSupportedDepthStreamProfiles->getProfile(i);
+        auto vsp = sp->as<ob::VideoStreamProfile>();
+        if (vsp->getWidth() == depthVsp->getWidth() && vsp->getHeight() == depthVsp->getHeight() && vsp->getFormat() == depthVsp->getFormat() && vsp->getFps() == depthVsp->getFps())
+        {
+            // Found a matching depth stream profile, it is means the given stream profiles support hardware depth-to-color alignment
+            return true;
+        }
+    }
+    return false;
+}
+
+std::shared_ptr<ob::Config> Orbbec::CreateHwD2CAlignConfig()
+{
+    auto coloStreamProfiles = pipeline_->getStreamProfileList(OB_SENSOR_COLOR);
+    auto depthStreamProfiles = pipeline_->getStreamProfileList(OB_SENSOR_DEPTH);
+
+    // Iterate through all color and depth stream profiles to find a match for hardware depth-to-color alignment
+    auto colorSpCount = coloStreamProfiles->getCount();
+    auto depthSpCount = depthStreamProfiles->getCount();
+    for (uint32_t i = 0; i < colorSpCount; i++)
+    {
+        auto colorProfile = coloStreamProfiles->getProfile(i);
+        auto colorVsp = colorProfile->as<ob::VideoStreamProfile>();
+        for (uint32_t j = 0; j < depthSpCount; j++)
+        {
+            auto depthProfile = depthStreamProfiles->getProfile(j);
+            auto depthVsp = depthProfile->as<ob::VideoStreamProfile>();
+
+            // make sure the color and depth stream have the same fps, due to some models may not support different fps
+            if (colorVsp->getFps() != depthVsp->getFps())
+            {
+                continue;
+            }
+
+            // Check if the given stream profiles support hardware depth-to-color alignment
+            if (CheckIfSupportHDW2CAlign(colorProfile, depthProfile))
+            {
+                // If support, create a config for hardware depth-to-color alignment
+                auto hwD2CAlignConfig = std::make_shared<ob::Config>();
+                hwD2CAlignConfig->enableStream(colorProfile);                                                    // enable color stream
+                hwD2CAlignConfig->enableStream(depthProfile);                                                    // enable depth stream
+                hwD2CAlignConfig->setAlignMode(ALIGN_D2C_HW_MODE);                                               // enable hardware depth-to-color alignment
+                hwD2CAlignConfig->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE); // output frameset with all types of frames
+                return hwD2CAlignConfig;
+            }
+        }
+    }
+    return nullptr;
 }

@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/include/opencv4",
+                "${workspaceFolder}/3rd-party/OrbbecSDK-2.3.5/include",
                 "${workspaceFolder}/vision_3dof/**"
             ],
             "defines": [],

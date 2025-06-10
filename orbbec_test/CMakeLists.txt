@@ -15,8 +15,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-
-
 if (NOT WIN32)
     set(EXTERNAL_LIB "-ldl -lrt -lgomp -lz -lm -lpthread")
     set(LINK_LIBS ${LINK_LIBS} ${EXTERNAL_LIB})
@@ -46,4 +44,4 @@ set(XT_COMPILE_FLAGS "${XT_COMPILE_FLAGS} -fstack-protector-strong")
 set(CMAKE_C_FLAGS    "${XT_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
-add_subdirectory(sync_align)
+add_subdirectory(coordinate_transform)
