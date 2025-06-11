@@ -27,14 +27,11 @@ public:
   std::shared_ptr<ob::FrameSet> GetFrameSet();
   // 获取相机内参
   bool GetCameraIntrinsics(XtCameraDepthIntrinsics &depth_intrinsics);
-  // void GetDepthFrame(std::shared_ptr<ob::Device> dev, ob::DepthFrame& depth_frame);
-  // void GetIrFrame(std::shared_ptr<ob::Device> dev, ob::IrFrame& ir_frame);
-  // void GetSkeletonFrame(std::shared_ptr<ob::Device> dev, ob::SkeletonFrame& skeleton_frame);
-  // void GetPipeline(std::shared_ptr<ob::Device> dev);
 
   bool Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frame_set);
   // 属性
   void EnableFrameSync(bool sync);
+  void GetProfilesSupport(OBSensorType sensor_type);
 
 private:
   bool IsPrimaryTypeProperty(OBPropertyItem propertyItem);
@@ -42,6 +39,7 @@ private:
 
   bool CheckIfSupportHDW2CAlign(std::shared_ptr<ob::StreamProfile> color_stream_profile, std::shared_ptr<ob::StreamProfile> depth_sream_frofile);
   std::shared_ptr<ob::Config> CreateHwD2CAlignConfig();
+
   void PrintRuslt(std::string msg, OBPoint2f source, OBPoint3f target, float depth_value);
 
 private:

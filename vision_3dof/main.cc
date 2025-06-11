@@ -20,7 +20,6 @@ int main()
         std::cerr << "open orbbec " << serial_number << " failed" << std::endl;
         return -1;
     }
-
     std::shared_ptr<ob::FrameSet> frame_set = orbbec.GetFrameSet();
 
     cv::Mat mat;

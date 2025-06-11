@@ -170,7 +170,7 @@ bool Orbbec::OpenDevice(std::string serial_number)
         return false;
     }
 
-    pipeline_ = std::make_shared<ob::Pipeline>();
+    pipeline_ = std::make_shared<ob::Pipeline>(device_);
     // Create a context, for getting devices and sensors
     context_ = std::make_shared<ob::Context>();
     // Activate device clock synchronization
@@ -586,6 +586,10 @@ bool Orbbec::CheckIfSupportHDW2CAlign(std::shared_ptr<ob::StreamProfile> color_s
         if (vsp->getWidth() == depthVsp->getWidth() && vsp->getHeight() == depthVsp->getHeight() && vsp->getFormat() == depthVsp->getFormat() && vsp->getFps() == depthVsp->getFps())
         {
             // Found a matching depth stream profile, it is means the given stream profiles support hardware depth-to-color alignment
+            std::cout << "Found a matching depth stream profile for hardware depth-to-color alignment: "
+                      << "width: " << vsp->getWidth() << ", height: " << vsp->getHeight()
+                      << ", format: " << vsp->getFormat() << ", fps: " << vsp->getFps() << std::endl;
+
             return true;
         }
     }
@@ -612,6 +616,7 @@ std::shared_ptr<ob::Config> Orbbec::CreateHwD2CAlignConfig()
             // make sure the color and depth stream have the same fps, due to some models may not support different fps
             if (colorVsp->getFps() != depthVsp->getFps())
             {
+                // If the fps of the color and depth streams are not the same, skip this pair
                 continue;
             }
 
@@ -629,4 +634,17 @@ std::shared_ptr<ob::Config> Orbbec::CreateHwD2CAlignConfig()
         }
     }
     return nullptr;
+}
+
+void Orbbec::GetProfilesSupport(OBSensorType sensor_type)
+{
+    auto stream_profiles = pipeline_->getStreamProfileList(OB_SENSOR_COLOR);
+    auto profiles_ount = stream_profiles->getCount();
+    for (uint32_t i = 0; i < profiles_ount; i++)
+    {
+        auto profile = stream_profiles->getProfile(i);
+        auto sp = profile->as<ob::VideoStreamProfile>();
+        std::cout << "Profile " << i << ": width: " << sp->getWidth() << ", height: " << sp->getHeight()
+                  << ", fps: " << sp->getFps() << ", format: " << sp->getFormat() << std::endl;
+    }
 }

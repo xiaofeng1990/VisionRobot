@@ -63,6 +63,8 @@ else(OrbbecSDK_FOUND)
   message(FATA_ERROR "Do not find Orbec")
 endif()
 
+# nlohmann
+include_directories(${CMAKE_SOURCE_DIR}/3rd-party/nlohmann)
 
 include_directories(.)
 aux_source_directory(${PROJECT_SOURCE_DIR}/common               COMMON_SRC_FILES)
