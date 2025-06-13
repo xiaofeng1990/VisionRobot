@@ -11,6 +11,69 @@
 #include <string>
 #include <vector>
 #include <sys/time.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+// 辅助函数：保证发送所有数据
+ssize_t send_all(int sockfd, const void *data, size_t length)
+{
+    size_t total = 0;
+    const char *ptr = static_cast<const char *>(data);
+    while (total < length)
+    {
+        int sent = send(sockfd, ptr + total, static_cast<int>(length - total), 0);
+        if (sent == -1 || sent <= 0)
+        {
+            return -1;
+        }
+        total += sent;
+    }
+    return static_cast<ssize_t>(total);
+}
+
+// 辅助函数：保证接收指定长度的数据
+ssize_t recv_all(int sockfd, void *buffer, size_t length)
+{
+    size_t total = 0;
+    char *ptr = static_cast<char *>(buffer);
+    while (total < length)
+    {
+        int recvd = recv(sockfd, ptr + total, static_cast<int>(length - total), 0);
+        if (recvd == -1 || recvd <= 0)
+        {
+            return -1;
+        }
+        total += recvd;
+    }
+    return static_cast<ssize_t>(total);
+}
+
+uint64_t htonll(uint64_t value)
+{
+// Linux 下如果系统为小端，也需要转换
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t high = htonl(static_cast<uint32_t>(value >> 32));
+    uint32_t low = htonl(static_cast<uint32_t>(value & 0xFFFFFFFFULL));
+    return (static_cast<uint64_t>(low) << 32) | high;
+#else
+    return value;
+#endif
+}
+
+uint64_t ntohll(uint64_t value)
+{
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t high = ntohl(static_cast<uint32_t>(value >> 32));
+    uint32_t low = ntohl(static_cast<uint32_t>(value & 0xFFFFFFFFULL));
+    return (static_cast<uint64_t>(low) << 32) | high;
+#else
+    return value;
+#endif
+}
 
 std::string to_lower(const std::string &str)
 {

@@ -23,7 +23,7 @@ public:
     Episode();
     ~Episode();
     bool Connect(const std::string &server_ip, int port);
-    bool Disconnect();
+    void Disconnect();
     // 急停
     json EmergencyStop(int enable);
 
@@ -43,7 +43,7 @@ public:
     json GetMotorAngles();
 
 private:
-    bool SendCommand(const std::string &command);
+    json SendCommand(const json &command);
 
 private:
     int port_;

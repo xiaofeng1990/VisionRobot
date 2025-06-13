@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 
+uint64_t htonll(uint64_t value);
+uint64_t ntohll(uint64_t value);
+ssize_t send_all(int sockfd, const void *data, size_t length);
+ssize_t recv_all(int sockfd, void *buffer, size_t length);
 std::string to_lower(const std::string &str);
 int xtmkdir(const std::string path);
 int download_file(const std::string &url, std::string &save_path);

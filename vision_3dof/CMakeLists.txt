@@ -50,7 +50,8 @@ set(CMAKE_C_FLAGS    "${XT_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec    ORBBEC_SRC_FILES)
-
+aux_source_directory(${PROJECT_SOURCE_DIR}/episode   EPISODE_SRC_FILES)
+aux_source_directory(${CMAKE_SOURCE_DIR}/common               COMMON_SRC_FILES)
 
 include_directories(.)
 
@@ -59,6 +60,7 @@ cuda_add_executable(${TARGET_NAME}
     main.cc
     ${COMMON_SRC_FILES}
     ${ORBBEC_SRC_FILES}
+    ${EPISODE_SRC_FILES}
     )
 
 target_link_libraries(${TARGET_NAME} OrbbecSDK::OrbbecSDK -lboost_filesystem -lboost_system
