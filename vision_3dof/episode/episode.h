@@ -22,7 +22,7 @@ class Episode
 public:
     Episode();
     ~Episode();
-    bool Connect(const std::string &server_ip, int port);
+    bool Connect(const std::string server_ip, int port);
     void Disconnect();
     // 急停
     json EmergencyStop(int enable);

@@ -10,7 +10,7 @@ Episode::~Episode()
     Disconnect();
 }
 
-bool Episode::Connect(const std::string &server_ip, int port)
+bool Episode::Connect(const std::string server_ip, int port)
 {
 
     // 创建 socket

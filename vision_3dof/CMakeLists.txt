@@ -51,7 +51,7 @@ set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec    ORBBEC_SRC_FILES)
 aux_source_directory(${PROJECT_SOURCE_DIR}/episode   EPISODE_SRC_FILES)
-aux_source_directory(${CMAKE_SOURCE_DIR}/common               COMMON_SRC_FILES)
+aux_source_directory(${CMAKE_SOURCE_DIR}/common      COMMON_SRC_FILES)
 
 include_directories(.)
 
