@@ -41,6 +41,7 @@ public:
 
     json SetFreeMode(int mode);
     json GetMotorAngles();
+    int Test();
 
 private:
     json SendCommand(const json &command);
