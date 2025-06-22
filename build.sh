@@ -38,7 +38,7 @@ done
 pushd ${out_dir} > /dev/null
 
 if [[ -z "$only_make" ]]; then
-    cmake ..
+    cmake  ..
 fi
 
 make -j"$(nproc)" $specify_targets

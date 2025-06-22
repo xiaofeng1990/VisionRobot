@@ -160,9 +160,9 @@ bool Orbbec::CloseDevice()
     return true;
 }
 
-bool Orbbec::OpenDevice(std::string serial_number)
+bool Orbbec::OpenDevice()
 {
-    device_ = Orbbec::GetDevice(serial_number);
+    device_ = Orbbec::GetDevice(0);
     if (device_ == nullptr)
     {
         // XT_LOGT(INFO, TAG, "open orbbec %s failed", serial_number.c_str());
@@ -182,11 +182,7 @@ bool Orbbec::OpenDevice(std::string serial_number)
     // Enable the color and depth streams.
     // config_->enableStream(OB_STREAM_COLOR);
     // config_->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
-    // config_->enableVideoStream(OB_STREAM_DEPTH, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_ANY);
 
-    // config_->enableStream(OB_STREAM_COLOR);
-    // config_->enableStream(OB_STREAM_DEPTH);
-// Enable the IR stream.
 #if 1
     // config_->enableStream(OB_STREAM_IR_LEFT);
     // config_->enableStream(OB_STREAM_IR_RIGHT);
@@ -250,23 +246,22 @@ bool Orbbec::OpenDevice(std::string serial_number)
     is_open_.store(true, std::memory_order_release);
     return true;
 }
-bool Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
+std::shared_ptr<ob::VideoStreamProfile> Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
 {
     if (!is_open_.load(std::memory_order_acquire))
     {
         // XT_LOGT(ERROR, TAG, "orbbec device not open");
-        return false;
+        return nullptr;
     }
     int read_count = 0;
     if (frame_set == nullptr)
     {
         std::cout << "frame_set is null" << std::endl;
-        return false;
+        return nullptr;
     }
 
     // get color frame from frameset.
     // auto colorFrame = frameSet->colorFrame();
-    frame_set->getType();
     auto color_frame = frame_set->getFrame(OB_FRAME_COLOR)->as<ob::ColorFrame>();
 
     // Convert the color frame to RGB format.
@@ -287,7 +282,7 @@ bool Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
         else
         {
             std::cout << "Color format is not support!" << std::endl;
-            return false;
+            return nullptr;
         }
         color_frame = format_onverter_->process(color_frame)->as<ob::ColorFrame>();
     }
@@ -295,10 +290,10 @@ bool Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
     // Processed the color frames to BGR format, use OpenCV to save to disk.
     format_onverter_->setFormatConvertType(FORMAT_RGB_TO_BGR);
     color_frame = format_onverter_->process(color_frame)->as<ob::ColorFrame>();
-
     cv::Mat color_raw_mat(color_frame->height(), color_frame->width(), CV_8UC3, color_frame->data());
     color_raw_mat.copyTo(mat);
-    return true;
+
+    return color_frame->getStreamProfile()->as<ob::VideoStreamProfile>();
 }
 
 bool Orbbec::GetDepthFrame(cv::Mat &mat)

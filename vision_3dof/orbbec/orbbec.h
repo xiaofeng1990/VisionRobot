@@ -18,8 +18,9 @@ public:
   std::shared_ptr<ob::Device> GetDevice(std::string serial_number);
   bool OpenDevice(std::string serial_number);
   bool OpenDevice(int index);
+  bool OpenDevice();
   bool CloseDevice();
-  bool GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat);
+  std::shared_ptr<ob::VideoStreamProfile> GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat);
   bool GetDepthFrame(cv::Mat &mat);
   bool GetIrFrame(std::vector<cv::Mat> &ir_mat_list);
   std::vector<OBPropertyItem> GetPropertyList();

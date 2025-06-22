@@ -71,6 +71,8 @@
         "codecvt": "cpp",
         "forward_list": "cpp",
         "cfenv": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "csignal": "cpp",
+        "unordered_set": "cpp"
     }
 }

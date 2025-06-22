@@ -49,9 +49,11 @@ set(XT_COMPILE_FLAGS "${XT_COMPILE_FLAGS} -fstack-protector-strong")
 set(CMAKE_C_FLAGS    "${XT_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${XT_COMPILE_FLAGS}")
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec    ORBBEC_SRC_FILES)
-aux_source_directory(${PROJECT_SOURCE_DIR}/episode   EPISODE_SRC_FILES)
-aux_source_directory(${CMAKE_SOURCE_DIR}/common      COMMON_SRC_FILES)
+aux_source_directory(${PROJECT_SOURCE_DIR}/orbbec           ORBBEC_SRC_FILES)
+aux_source_directory(${PROJECT_SOURCE_DIR}/episode          EPISODE_SRC_FILES)
+aux_source_directory(${PROJECT_SOURCE_DIR}/calibration      CALIBRATION_SRC_FILES)
+aux_source_directory(${CMAKE_SOURCE_DIR}/common             COMMON_SRC_FILES)
+
 
 include_directories(.)
 
@@ -61,6 +63,7 @@ cuda_add_executable(${TARGET_NAME}
     ${COMMON_SRC_FILES}
     ${ORBBEC_SRC_FILES}
     ${EPISODE_SRC_FILES}
+    ${CALIBRATION_SRC_FILES}
     )
 
 target_link_libraries(${TARGET_NAME} OrbbecSDK::OrbbecSDK -lboost_filesystem -lboost_system
@@ -68,6 +71,16 @@ target_link_libraries(${TARGET_NAME} OrbbecSDK::OrbbecSDK -lboost_filesystem -lb
 
 # install(FILES ${PADDLE_LIB}/paddle/lib/libpaddle_inference.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 # set_target_properties(${TARGET_NAME}  PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags,-rpath,${CMAKE_INSTALL_PREFIX}/lib:${FASTDEPLOY_ASCEND_DIR}/third_libs/install/opencv/lib")
-set_target_properties(${TARGET_NAME}  PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags,-rpath,${CMAKE_INSTALL_PREFIX}/lib")
+# set_target_properties(${TARGET_NAME}  PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags,-rpath,${CMAKE_INSTALL_PREFIX}/lib")
+
+# set_target_properties(${TARGET_NAME} PROPERTIES
+#     BUILD_WITH_INSTALL_RPATH TRUE      # 使用安装路径构建 RPATH
+#     INSTALL_RPATH "${OpenCV_LIB_DIR}"  # 设置安装后的库路径
+#     SKIP_BUILD_RPATH FALSE             # 不跳过构建时的 RPATH
+#     BUILD_RPATH "${CMAKE_INSTALL_PREFIX}/lib:${OpenCV_INSTALL_PATH}/lib:${OrbbecSDK_LIBS_DIR}"    # 设置构建时的库路径
+#     INSTALL_RPATH_USE_LINK_PATH TRUE   # 包含链接路径
+# )
+
+
 
 install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
