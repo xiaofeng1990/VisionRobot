@@ -404,13 +404,13 @@ bool Orbbec::GetIrFrame(std::vector<cv::Mat> &ir_mat_list)
     return ret;
 }
 
-bool Orbbec::Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frame_set)
+bool Orbbec::Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frameset)
 {
     // Get the color frame and check its validity
-    auto color_frame = frame_set->getFrame(OB_FRAME_COLOR);
+    auto color_frame = frameset->getFrame(OB_FRAME_COLOR);
 
     // Get the depth frame and check its validity
-    auto depth_frame = frame_set->getFrame(OB_FRAME_DEPTH);
+    auto depth_frame = frameset->getFrame(OB_FRAME_DEPTH);
 
     // Get the width and height of the color and depth frames
     auto depth_frame_width = depth_frame->as<ob::VideoFrame>()->getWidth();
@@ -432,7 +432,7 @@ bool Orbbec::Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shar
     float depth_value = (float)pDepthData[static_cast<uint16_t>(source.y) * depth_frame_width + static_cast<uint16_t>(source.x)];
     if (depth_value == 0)
     {
-        std::cout << "The depth value is 0, so it's recommended to point the camera at a flat surface" << std::endl;
+        // std::cout << "The depth value is 0, so it's recommended to point the camera at a flat surface" << std::endl;
         return false;
     }
     bool result = ob::CoordinateTransformHelper::transformation2dto3d(source, depth_value, depth_intrinsic, extrinsicD2C, &target);
@@ -440,7 +440,7 @@ bool Orbbec::Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shar
     {
         return false;
     }
-    PrintRuslt("2d to 3D: pixel coordinates and depth transform to point in 3D space", source, target, depth_value);
+    // PrintRuslt("2d to 3D: pixel coordinates and depth transform to point in 3D space", source, target, depth_value);
     return true;
 }
 void Orbbec::PrintRuslt(std::string msg, OBPoint2f source, OBPoint3f target, float depth_value)

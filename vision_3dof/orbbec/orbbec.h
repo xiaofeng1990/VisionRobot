@@ -29,7 +29,7 @@ public:
   // 获取相机内参
   bool GetCameraIntrinsics(XtCameraDepthIntrinsics &depth_intrinsics);
 
-  bool Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frame_set);
+  bool Transformation2dto3d(OBPoint2f source, OBPoint3f &target, std::shared_ptr<ob::FrameSet> frameset);
   // 属性
   void EnableFrameSync(bool sync);
   void GetProfilesSupport(OBSensorType sensor_type);
