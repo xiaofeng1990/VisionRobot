@@ -643,3 +643,20 @@ void Orbbec::GetProfilesSupport(OBSensorType sensor_type)
                   << ", fps: " << sp->getFps() << ", format: " << sp->getFormat() << std::endl;
     }
 }
+
+bool Orbbec::TestCamera()
+{
+
+    OpenDevice();
+    cv::Mat color_mat;
+    while (true)
+    {
+        if (GetColorMat(GetFrameSet(), color_mat))
+        {
+            cv::imshow("Color Frame", color_mat);
+            cv::waitKey(25);
+        }
+    }
+
+    return true;
+}

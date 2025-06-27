@@ -33,6 +33,7 @@ public:
   // 属性
   void EnableFrameSync(bool sync);
   void GetProfilesSupport(OBSensorType sensor_type);
+  bool TestCamera();
 
 private:
   bool IsPrimaryTypeProperty(OBPropertyItem propertyItem);

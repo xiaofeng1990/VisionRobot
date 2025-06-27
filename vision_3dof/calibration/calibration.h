@@ -23,9 +23,11 @@ public:
     void SaveCalibrationResult(const std::string &file_path);
     // 测试标定
     void TestCalibration(const std::string &file_path);
+    void TestCalibration2(const std::string &file_path);
 
 private:
     bool GetArucoCenter(cv::Point3f &point3f);
+    std::vector<cv::Point> GetGridPointsInContour(std::vector<cv::Point> &contour, int gridStep);
 
 private:
     // 预采样点

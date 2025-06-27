@@ -26,14 +26,6 @@ bool Calibration::InitDevice()
     if (episode_.Connect("127.0.0.1", 12345))
     {
         std::cout << "Episode 连接成功 移动到初始位置" << std::endl;
-        auto result = episode_.MoveXYZRotation({320, 0, 100}, {180, 0, 90}, "xyz", 1);
-        std::cout << "move_xyz_rotation 响应: " << result.dump() << std::endl;
-        double sleep_time = result.get<double>();
-        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
-
-        std::cout << "即将启动负压吸盘抓取..." << std::endl;
-        result = episode_.GripperOn();
-        std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 
     return true;
@@ -105,7 +97,7 @@ void Calibration::PerformCalibration()
                                           cv::Point2f(400, 0), cv::Point2f(300, 100), cv::Point2f(250, 0), cv::Point2f(300, -100),
                                           cv::Point2f(430, 0), cv::Point2f(300, 150), cv::Point2f(250, 0), cv::Point2f(300, -150),
                                           cv::Point2f(430, 0), cv::Point2f(300, 200), cv::Point2f(250, 0), cv::Point2f(299, -200)};
-    std::vector<float> z_list{15, 30, 50, 70, 90, 110};
+    std::vector<float> z_list{20, 30, 50, 70, 90, 110};
     std::vector<cv::Point3f> point3f_list;
     for (const auto &z : z_list)
     {
@@ -118,6 +110,14 @@ void Calibration::PerformCalibration()
             point3f_list.push_back(point3f);
         }
     }
+
+    auto result = episode_.MoveXYZRotation({320, 0, 100}, {180, 0, 90}, "xyz", 1);
+    double sleep_time = result.get<double>();
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+
+    std::cout << "即将启动负压吸盘抓取..." << std::endl;
+    episode_.GripperOn();
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     std::cout << "请固定 ArUco 标记于末端并保持吸附。" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -158,6 +158,7 @@ void Calibration::PerformCalibration()
     fs.release();
     std::cout << "Affine Matrix:\n"
               << affine << std::endl;
+    episode_.GripperOff();
 }
 // 加载标定结果
 void Calibration::LoadCalibrationResult(const std::string &file_path)
@@ -176,7 +177,6 @@ void Calibration::SaveCalibrationResult(const std::string &file_path)
 // 测试标定
 void Calibration::TestCalibration(const std::string &file_path)
 {
-    episode_.GripperOff();
     cv::FileStorage fs(file_path, cv::FileStorage::READ);
     if (!fs.isOpened())
     {
@@ -202,7 +202,7 @@ void Calibration::TestCalibration(const std::string &file_path)
     std::mt19937_64 engine(seed);
     std::uniform_int_distribution<int> dist_x(250, 380);
     std::uniform_int_distribution<int> dist_y(-110, 210);
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 10; i++)
     {
         cv::Point3f camera_point3f;
         if (GetArucoCenter(camera_point3f))
@@ -240,4 +240,190 @@ void Calibration::TestCalibration(const std::string &file_path)
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     }
+}
+
+void Calibration::TestCalibration2(const std::string &file_path)
+{
+    cv::FileStorage fs(file_path, cv::FileStorage::READ);
+    if (!fs.isOpened())
+    {
+        std::cerr << "无法打开标定结果文件: " << file_path << std::endl;
+        return;
+    }
+    cv::Mat affine_matrix;
+    fs["AffineMatrix"] >> affine_matrix;
+    fs.release();
+    std::cout << "Affine Matrix:\n"
+              << affine_matrix << std::endl;
+    cv::Mat homo = cv::Mat::eye(4, 4, CV_64F);
+    affine_matrix.copyTo(homo.rowRange(0, 3));
+    std::cout << "homo:\n"
+              << homo << std::endl;
+
+    // opencv 查找目标轮廓
+    cv::Mat color_mat;
+    std::shared_ptr<ob::FrameSet> frameset;
+    for (size_t i = 0; i < 50; i++)
+    {
+        frameset = orbbec_.GetFrameSet();
+        std::shared_ptr<ob::VideoStreamProfile> profile;
+        profile = orbbec_.GetColorMat(frameset, color_mat);
+    }
+    cv::imwrite("color_mat.jpg", color_mat);
+    cv::Mat gray;
+    cv::cvtColor(color_mat, gray, cv::COLOR_BGR2GRAY);
+    cv::imwrite("gray.jpg", gray);
+    cv::Mat binary;
+    cv::threshold(gray, binary, 90, 200, cv::THRESH_BINARY_INV);
+    cv::imwrite("binary.jpg", binary);
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    findContours(binary, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    // drawContours(color_mat, contours, -1, cv::Scalar(0, 255, 0), 2);
+    // cv::imwrite("Contours.jpg", color_mat);
+    std::vector<cv::Point> approxs;
+    for (size_t i = 0; i < contours.size(); i++)
+    {
+        // 计算轮廓面积，过滤小轮廓
+        double area = cv::contourArea(contours[i]);
+        if (area < 15000)
+            continue;
+        std::cout << "area " << area << std::endl;
+
+        // 轮廓多边形近似
+        std::vector<cv::Point> approx;
+        // 计算轮廓的周长
+        double peri = cv::arcLength(contours[i], true);
+        cv::approxPolyDP(contours[i], approx, 0.02 * peri, true);
+
+        // 检查是否为四边形
+        if (approx.size() != 4)
+            continue;
+
+        // 确保四边形是凸的
+        if (!isContourConvex(approx))
+            continue;
+
+        // 计算最大内角，过滤非矩形的四边形
+        double maxCosine = 0;
+        for (int j = 0; j < 4; j++)
+        {
+            cv::Point pt0 = approx[j];
+            cv::Point pt1 = approx[(j + 1) % 4];
+            cv::Point pt2 = approx[(j + 2) % 4];
+
+            // 计算边向量
+            double dx1 = pt1.x - pt0.x;
+            double dy1 = pt1.y - pt0.y;
+            double dx2 = pt1.x - pt2.x;
+            double dy2 = pt1.y - pt2.y;
+
+            // 计算角度余弦
+            double angle = fabs((dx1 * dx2 + dy1 * dy2) /
+                                ((sqrt(dx1 * dx1 + dy1 * dy1) * sqrt(dx2 * dx2 + dy2 * dy2)) + 1e-10));
+
+            // 更新最大余弦值
+            maxCosine = std::max(maxCosine, angle);
+        }
+
+        // 如果所有角度都接近90度，则认为是矩形
+        if (maxCosine < 0.3)
+        {
+            // 在原始图像上绘制四边形
+            cv::polylines(color_mat, approx, true, cv::Scalar(0, 255, 0), 3);
+
+            // 绘制顶点
+            for (int j = 0; j < 4; j++)
+            {
+                cv::circle(color_mat, approx[j], 8, cv::Scalar(0, 0, 255), -1);
+                cv::putText(color_mat, std::to_string(j + 1), cv::Point(approx[j].x - 10, approx[j].y - 10),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 0, 0), 2);
+            }
+
+            // 打印顶点坐标
+            std::cout << "Found quadrilateral: " << std::endl;
+            for (int j = 0; j < 4; j++)
+            {
+                std::cout << "Point " << j + 1 << ": (" << approx[j].x << ", " << approx[j].y << ")" << std::endl;
+            }
+            approxs = approx;
+        }
+    }
+
+    auto points = GetGridPointsInContour(approxs, 40);
+    std::vector<cv::Point> points_reversed(points.rbegin(), points.rend());
+
+    for (int i = 0; i < points_reversed.size(); i++)
+    {
+        cv::Point &point = points_reversed[i];
+        cv::circle(color_mat, point, 1, cv::Scalar(0, 255, 0), -1);
+        cv::putText(color_mat, std::to_string(i), point,
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+    }
+    cv::imwrite("Contours.jpg", color_mat);
+    // cv::imshow("Contours", color_mat);
+    // cv::waitKey(0);
+    std::vector<cv::Point3f> robot_points;
+
+    for (int i = 0; i < points_reversed.size(); i++)
+    {
+        cv::Point3f camera_point3f;
+        OBPoint2f src;
+        cv::Point &point = points_reversed[i];
+        src.x = point.x;
+        src.y = point.y;
+        OBPoint3f target;
+        if (orbbec_.Transformation2dto3d(src, target, frameset))
+        {
+            camera_point3f.x = target.x;
+            camera_point3f.y = target.y;
+            camera_point3f.z = target.z;
+            cv::Mat p_homo = (cv::Mat_<double>(4, 1) << camera_point3f.x, camera_point3f.y, camera_point3f.z, 1.0);
+            cv::Mat p_robot_homo = homo * p_homo;
+            std::cout << "p_robot_homo:\n"
+                      << p_robot_homo << std::endl;
+            cv::Point3f robot_point3f;
+
+            robot_point3f.x = p_robot_homo.at<double>(0);
+            robot_point3f.y = p_robot_homo.at<double>(1);
+            robot_point3f.z = p_robot_homo.at<double>(2);
+            robot_points.push_back(robot_point3f);
+        }
+    }
+
+    for (size_t i = 0; i < robot_points.size(); i++)
+    {
+        cv::Point3f &robot_point3f = robot_points[i];
+        auto result = episode_.MoveXYZRotation({robot_point3f.x, robot_point3f.y, robot_point3f.z + sucker_length_ + 30}, {180, 0, 90}, "xyz", 1);
+        double sleep_time = result.get<double>();
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+    }
+}
+
+// 方法2：网格采样轮廓内部点
+std::vector<cv::Point> Calibration::GetGridPointsInContour(std::vector<cv::Point> &contour, int gridStep)
+{
+    std::vector<cv::Point> points;
+    if (contour.empty())
+        return points;
+
+    // 1. 获取轮廓的边界矩形
+    cv::Rect boundRect = cv::boundingRect(contour);
+
+    // 2. 网格采样
+    for (int y = boundRect.y + 10; y < boundRect.y + boundRect.height; y += gridStep)
+    {
+        for (int x = boundRect.x + 10; x < boundRect.x + boundRect.width; x += gridStep)
+        {
+            cv::Point pt(x, y);
+
+            // 检查点是否在轮廓内
+            if (pointPolygonTest(contour, pt, false) > 0)
+            {
+                points.push_back(pt);
+            }
+        }
+    }
+
+    return points;
 }
