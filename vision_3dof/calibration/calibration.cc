@@ -97,7 +97,7 @@ void Calibration::PerformCalibration()
                                           cv::Point2f(400, 0), cv::Point2f(300, 100), cv::Point2f(250, 0), cv::Point2f(300, -100),
                                           cv::Point2f(430, 0), cv::Point2f(300, 150), cv::Point2f(250, 0), cv::Point2f(300, -150),
                                           cv::Point2f(430, 0), cv::Point2f(300, 200), cv::Point2f(250, 0), cv::Point2f(299, -200)};
-    std::vector<float> z_list{20, 30, 50, 70, 90, 110};
+    std::vector<float> z_list{28, 30, 50, 70, 90, 110};
     std::vector<cv::Point3f> point3f_list;
     for (const auto &z : z_list)
     {

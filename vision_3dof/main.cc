@@ -14,7 +14,7 @@ int main()
     cal.InitDevice();
     // cal.PerformCalibration();
     std::string file_path = "calibration/affine_matrix.yml";
-    // cal.TestCalibration(file_path);
-    cal.TestCalibration2(file_path);
+    cal.TestCalibration(file_path);
+    // cal.TestCalibration2(file_path);
     return 0;
 }
