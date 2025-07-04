@@ -71,4 +71,5 @@ include_directories(${CMAKE_SOURCE_DIR}/3rd-party/nlohmann)
 
 include_directories(.)
 add_subdirectory(vision_3dof)
+add_subdirectory(vision_6dof)
 add_subdirectory(orbbec_test)
