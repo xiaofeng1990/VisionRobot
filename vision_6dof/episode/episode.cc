@@ -142,6 +142,21 @@ json Episode::GetMotorAngles()
     return SendCommand(command);
 }
 
+json Episode::GetT()
+{
+    json command;
+    command["action"] = "get_T";
+    return SendCommand(command);
+}
+
+json Episode::GetPose(const std::string &rotation_order)
+{
+    json command;
+    command["action"] = "get_pose";
+    command["params"] = "rotation_order";
+    return SendCommand(command);
+}
+
 json Episode::SendCommand(const json &command)
 {
     if (sockfd_ == -1)
@@ -200,11 +215,18 @@ int Episode::Test()
 
     Episode client;
     client.Connect("127.0.0.1", 12345);
+
     std::cout << "移动到默认位置..." << std::endl;
     json result = client.AngleMode({180.0, 90.0, 83.0, 30.0, 110.0, 30.0}, 1.0);
     double sleep_time = result.get<double>();
     std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
 
+    result = client.GetT();
+    std::cout << "get_T 响应: " << result.dump() << std::endl;
+    result = client.GetPose("xyz");
+    std::cout << "get_pose 响应: " << result.dump() << std::endl;
+
+#if 0
     std::cout << "即将以 0.5 速度移动到指定位置[357.019928, 0.000000, 305.264329]，朝向[90, 0, 180]，旋转顺序 zyx..." << std::endl;
     result = client.MoveXYZRotation({357.019928, 0.0, 305.264329}, {90.0, 0.0, 180.0}, "zyx", 0.5);
     std::cout << "move_xyz_rotation 响应: " << result.dump() << std::endl;
@@ -222,5 +244,6 @@ int Episode::Test()
     std::cout << "move_linear_xyz_rotation 响应: " << result.dump() << std::endl;
     sleep_time = result.get<double>();
     std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+#endif
     return 0;
 }

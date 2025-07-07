@@ -24,6 +24,8 @@ public:
 
 private:
     void GetJointAngles();
+    double EvaluateImageQuality(cv::Mat &mat);
+    void SaveVectorToText(const std::vector<std::vector<double>> &data, const std::string &filename);
 
 private:
     // 预采样点
