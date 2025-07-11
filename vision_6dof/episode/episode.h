@@ -43,8 +43,8 @@ public:
     json SetFreeMode(int mode);
     json GetMotorAngles();
 
-    json GetT();
-    json GetPose(const std::string &rotation_order = "zyx");
+    std::vector<double> GetT();
+    std::vector<double> GetPose(const std::string &rotation_order = "zyx");
     int Test();
 
 private:

@@ -10,6 +10,9 @@ int main()
 
     Calibration cali;
     cali.InitDevice();
-    cali.PreSample();
+    // cali.PreSample();
+    cali.Sample();
+    // Episode client;
+    // client.Test();
     return 0;
 }

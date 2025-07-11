@@ -14,7 +14,7 @@ Calibration::Calibration(/* args */)
 Calibration::~Calibration()
 {
     episode_.SetFreeMode(0);
-    if (thread_->joinable())
+    if (thread_ != nullptr && thread_->joinable())
     {
         thread_->join();
     }
@@ -36,7 +36,6 @@ bool Calibration::InitDevice()
         double sleep_time = result.get<double>();
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
         // 开启读取角度
-        thread_.reset(new std::thread(std::bind(&Calibration::GetJointAngles, this)));
     }
 
     return true;
@@ -44,6 +43,7 @@ bool Calibration::InitDevice()
 // 进行标定 虚函数
 void Calibration::PreSample()
 {
+    thread_.reset(new std::thread(std::bind(&Calibration::GetJointAngles, this)));
     std::cout << "请安装深度相机，然后输入 p 开始预采样: " << std::endl;
     while (true)
     {
@@ -63,7 +63,7 @@ void Calibration::PreSample()
     std::cout << "15s后进入自由模式, 请手动移动机械臂..." << std::endl;
     std::cout << "=========================================" << std::endl;
     //  测试采图,暂时不进入自由模式
-    std::this_thread::sleep_for(std::chrono::seconds(15));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     episode_.SetFreeMode(1);
     while (true)
     {
@@ -77,8 +77,8 @@ void Calibration::PreSample()
         cv::Mat gray;
         cv::cvtColor(color_mat, gray, cv::COLOR_BGR2GRAY);
         cv::Size board_size;
-        board_size.width = 11;
-        board_size.height = 8;
+        board_size.width = board_size_with_;
+        board_size.height = board_size_height_;
         std::vector<cv::Point2f> pointbuf;
         auto found = cv::findChessboardCorners(gray, board_size, pointbuf, cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_FAST_CHECK | cv::CALIB_CB_NORMALIZE_IMAGE);
         if (found)
@@ -101,27 +101,10 @@ void Calibration::PreSample()
                 int key = cv::waitKey(1000);
                 continue;
             }
-
             std::cout << "检测到棋盘格，保存图像" << std::endl;
             // 判断图片质量
             double variance = EvaluateImageQuality(color_mat);
             std::cout << "图像清晰度方差: " << variance << std::endl;
-            // if (variance > 1000)
-            // {
-            //     std::cout << "Quality: Excellent (Very sharp)" << std::endl;
-            // }
-            // else if (variance > 500)
-            // {
-            //     std::cout << "Quality: Good (Acceptable sharpness)" << std::endl;
-            // }
-            // else if (variance > 100)
-            // {
-            //     std::cout << "Quality: Poor (Noticeably blurry)" << std::endl;
-            // }
-            // else
-            // {
-            //     std::cout << "Quality: Unacceptable (Extremely blurry)" << std::endl;
-            // }
             is_reading_.store(true, std::memory_order_release);
             std::vector<double> angles_list = angles_list_;
             is_reading_.store(false, std::memory_order_release);
@@ -161,30 +144,110 @@ void Calibration::PreSample()
 void Calibration::Sample()
 {
     // 退出自由模式
-
-    is_free_model_.store(false, std::memory_order_release);
     episode_.SetFreeMode(0);
-    for (int i = 0; i < position_list_.size(); ++i)
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(3000)));
+
+    // 从文件加载预采样点
+    std::ifstream infile("calibration/calibration_points.txt");
+    if (!infile.is_open())
+    {
+        std::cerr << "无法打开预采样点文件 calibration/calibration_points.txt" << std::endl;
+        return;
+    }
+    std::string line;
+    while (std::getline(infile, line))
+    {
+        std::vector<double> angles;
+        std::stringstream ss(line);
+        std::string angle_str;
+        while (std::getline(ss, angle_str, ';')) // 使用分号分隔
+        {
+            if (!angle_str.empty())
+            {
+                angles.push_back(std::stod(angle_str));
+            }
+        }
+
+        if (angles.size() == 6) // 确保每个采样点有6个角度
+        {
+            position_list_.push_back(angles);
+        }
+    }
+    // 输出采样点
+    for (auto &angles : position_list_)
+    {
+        std::cout << "采样点: ";
+        for (auto &angle : angles)
+        {
+            std::cout << angle << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    for (int i = 0; i < position_list_.size(); i++)
     {
         std::cout << "采样点 " << i + 1 << ": ";
         // 运动到指定角度
         auto result = episode_.AngleMode(position_list_[i], 1.0);
         double sleep_time = result.get<double>();
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(3000)));
         // 获取彩图
+
         auto frameset = orbbec_.GetFrameSet();
         cv::Mat color_mat;
         std::shared_ptr<ob::VideoStreamProfile> profile;
         profile = orbbec_.GetColorMat(frameset, color_mat);
+
+        cv::Mat color_mat_copy = color_mat.clone(); // 复制一份用于后续处理
+        cv::Mat gray;
+        cv::cvtColor(color_mat_copy, gray, cv::COLOR_BGR2GRAY);
+        cv::Size board_size;
+        board_size.width = board_size_with_;
+        board_size.height = board_size_height_;
+        std::vector<cv::Point2f> pointbuf;
+
+        auto found = cv::findChessboardCorners(gray, board_size, pointbuf, cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_FAST_CHECK | cv::CALIB_CB_NORMALIZE_IMAGE);
+        if (found)
+        {
+
+            cv::cornerSubPix(gray, pointbuf, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.0001));
+            cv::drawChessboardCorners(color_mat_copy, board_size, pointbuf, found);
+
+            // 获取变换矩阵
+            cv::Mat rvec, tvec;
+            auto T = episode_.GetT();
+            std::cout << "T [ ";
+            for (size_t i = 0; i < T.size(); i++)
+            {
+                std::cout << T[i] << " ";
+            }
+            std::cout << "]" << std::endl;
+            cv::Mat T_mat = cv::Mat(4, 4, CV_64F, T.data());
+            std::cout << "Transformation Matrix T: " << T_mat << std::endl;
+            T_mat_list_.push_back(T_mat.clone());
+            // 在图像上绘制坐标轴
+            std::string filename = "calibration/images/" + std::to_string(i) + ".jpg";
+            cv::imwrite(filename, color_mat);
+        }
+        cv::imshow("image", color_mat_copy);
+        cv::waitKey(3000);
         // 保存图像
-        std::string filename = "calibration/images/" + std::to_string(i) + ".jpg";
-        cv::imwrite(filename, color_mat);
     }
+
+    // 打印采样点
+    std::cout << "***************************************" << std::endl;
+    for (const auto &mat : T_mat_list_)
+    {
+        std::cout << "Saving matrix of " << mat << std::endl;
+    }
+    std::cout << "***************************************" << std::endl;
+    std::string affine_matrix_file = "calibration/T_end2base.yml";
+    SaveMatsToYML(affine_matrix_file, T_mat_list_);
+    // 输出采样点到文件
 }
 void Calibration::PerformCalibration()
 {
-    // 退出自由模式
-    // is_free_model_.store(false, std::memory_order_release);
 }
 
 // 测试标定
@@ -252,4 +315,37 @@ void Calibration::SaveVectorToText(const std::vector<std::vector<double>> &data,
         outfile << std::endl; // 每行结束换行
     }
     std::cout << "Saved " << data.size() << " rows to " << filename << std::endl;
+}
+
+void Calibration::SaveMatsToYML(const std::string &filename, const std::vector<cv::Mat> &mats)
+{
+    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
+    fs << "mat_sequence" << "["; // 开始序列
+
+    for (const auto &mat : mats)
+    {
+        std::cout << "Saving matrix of " << mat << std::endl;
+        fs << mat; // 直接写入矩阵，不需键名
+    }
+
+    fs << "]"; // 结束序列
+    fs.release();
+}
+
+std::vector<cv::Mat> Calibration::LoadMatsFromYML(const std::string &filename)
+{
+    std::vector<cv::Mat> mats;
+    cv::FileStorage fs(filename, cv::FileStorage::READ);
+    cv::FileNode node = fs["mat_sequence"];
+    if (node.type() == cv::FileNode::SEQ)
+    {
+        for (cv::FileNodeIterator it = node.begin(); it != node.end(); ++it)
+        {
+            cv::Mat mat;
+            *it >> mat;
+            mats.push_back(mat);
+        }
+    }
+    fs.release();
+    return mats;
 }

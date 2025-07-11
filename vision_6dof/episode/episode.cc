@@ -141,20 +141,69 @@ json Episode::GetMotorAngles()
     command["action"] = "get_motor_angles";
     return SendCommand(command);
 }
-
-json Episode::GetT()
+#if 0
+std::vector<double> Episode::GetT()
 {
     json command;
     command["action"] = "get_T";
-    return SendCommand(command);
-}
+    auto ret = SendCommand(command);
+    std::cout << "Received T: " << ret.dump() << std::endl;
 
-json Episode::GetPose(const std::string &rotation_order)
+    auto T_list = ret.get<std::vector<std::vector<double>>>();
+
+    // if (ret.is_array())
+    // {
+    //     for (size_t i = 0; i < ret.size(); i++)
+    //     {
+    //         std::vector<double> list = ret[i].get<std::vector<double>>();
+    //         for (size_t j = 0; j < list.size(); j++)
+    //         {
+    //             std::cout << list[j] << " ";
+    //         }
+    //     }
+    // }
+    // auto T_list = ret.get<std::vector<std::vector<double>>>();
+    std::vector<double> T;
+    for (size_t i = 0; i < T_list[i].size(); i++)
+    {
+        for (size_t j = 0; j < T_list[i].size(); j++)
+        {
+            T.push_back(ret[i][j]);
+            std::cout << ret[i][j] << " ";
+        }
+    }
+    return T;
+}
+#else
+std::vector<double> Episode::GetT()
+{
+    json command;
+    command["action"] = "get_T";
+    auto result = SendCommand(command);
+    // std::cout << "Received T: " << result.dump() << std::endl;
+    auto T_list = result.get<std::vector<std::vector<double>>>();
+
+    std::vector<double> T;
+    for (size_t i = 0; i < T_list.size(); i++)
+    {
+        for (size_t j = 0; j < T_list[i].size(); j++)
+        {
+            T.push_back(T_list[i][j]);
+            // std::cout << T_list[i][j] << " ";
+        }
+    }
+    // std::cout << std::endl;
+    return T;
+}
+#endif
+
+std::vector<double> Episode::GetPose(const std::string &rotation_order)
 {
     json command;
     command["action"] = "get_pose";
-    command["params"] = "rotation_order";
-    return SendCommand(command);
+    command["params"] = rotation_order;
+    auto ret = SendCommand(command);
+    return ret.get<std::vector<double>>();
 }
 
 json Episode::SendCommand(const json &command)
@@ -216,15 +265,38 @@ int Episode::Test()
     Episode client;
     client.Connect("127.0.0.1", 12345);
 
-    std::cout << "移动到默认位置..." << std::endl;
-    json result = client.AngleMode({180.0, 90.0, 83.0, 30.0, 110.0, 30.0}, 1.0);
-    double sleep_time = result.get<double>();
-    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+    for (int i = 0; i < 20; ++i)
+    {
+        std::cout << "移动到默认位置..." << std::endl;
+        json result = client.AngleMode({180.0, 90.0, 83.0, 30.0, 110.0, 30.0}, 1.0);
+        double sleep_time = result.get<double>();
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
 
-    result = client.GetT();
-    std::cout << "get_T 响应: " << result.dump() << std::endl;
-    result = client.GetPose("xyz");
-    std::cout << "get_pose 响应: " << result.dump() << std::endl;
+        auto ret = client.GetT();
+        std::cout << "get_T_mat 响应:" << std::endl;
+        for (const auto &row : ret)
+        {
+
+            std::cout << row << " ";
+        }
+        std::cout << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        // result = client.GetPose("xyz");
+        std::cout << "即将以 0.5 速度移动到指定位置[357.019928, 0.000000, 305.264329]，朝向[90, 0, 180]，旋转顺序 zyx..." << std::endl;
+        result = client.MoveXYZRotation({357.019928, 0.0, 305.264329}, {90.0, 0.0, 180.0}, "zyx", 0.5);
+        std::cout << "move_xyz_rotation 响应: " << result.dump() << std::endl;
+        sleep_time = result.get<double>();
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+        ret = client.GetT();
+        for (const auto &row : ret)
+        {
+            std::cout << row << " ";
+        }
+        std::cout << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        // result = client.GetPose("xyz");
+    }
 
 #if 0
     std::cout << "即将以 0.5 速度移动到指定位置[357.019928, 0.000000, 305.264329]，朝向[90, 0, 180]，旋转顺序 zyx..." << std::endl;
