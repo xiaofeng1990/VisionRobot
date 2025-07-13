@@ -21,7 +21,7 @@ public:
     void Sample();
     // 测试标定
     void TestCalibration(const std::string &file_path);
-    bool GetArucoCenter(cv::Point3f &point3f);
+    bool GetArucoCenter(cv::Point3f &point3f, cv::Mat &mat);
 
 private:
     void GetJointAngles();
@@ -49,7 +49,7 @@ private:
     float sucker_length_{60};        // 吸盘长度
     int board_size_with_{11};        // 棋盘格宽度
     int board_size_height_{8};       // 棋盘格高度
-    float square_size_{30};          // 棋盘格方块大小,单位为毫米
+    float square_size_{20};          // 棋盘格方块大小,单位为毫米
     // 标定结果
     // 保存路径
 };

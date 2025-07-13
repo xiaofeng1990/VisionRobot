@@ -12,7 +12,7 @@ int main()
     cali.InitDevice();
     // cali.PreSample();
     // cali.Sample();
-    cali.PerformCalibration();
+    // cali.PerformCalibration();
     cali.TestCalibration("./calibration/hand_eye_calibration.yml");
     // Episode client;
     // client.Test();

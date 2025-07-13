@@ -399,7 +399,7 @@ void Calibration::PerformCalibration()
     std::cout << "手眼标定结果已保存到 calibration/hand_eye_calibration.yml" << std::endl;
 }
 
-bool Calibration::GetArucoCenter(cv::Point3f &point3f)
+bool Calibration::GetArucoCenter(cv::Point3f &point3f, cv::Mat &mat)
 {
     auto frameset = orbbec_.GetFrameSet();
     cv::Mat color_mat;
@@ -437,22 +437,33 @@ bool Calibration::GetArucoCenter(cv::Point3f &point3f)
             OBPoint3f target;
             if (orbbec_.Transformation2dto3d(src, target, frameset))
             {
+                // 将目标点转换为三维点
                 point3f.x = target.x;
                 point3f.y = target.y;
                 point3f.z = target.z;
+                if (target.z > 0)
+                {
+                    std::cout << "Aruco marker center: " << point3f << std::endl;
+                    cv::drawFrameAxes(color_mat, intrinsics, distortion, rvec, tvec, marker_length_);
+                    cv::circle(color_mat, cv::Point(int(src.x), int(src.y)), 5, cv::Scalar(0, 0, 255), -1);
+                }
+                else
+                {
+                    std::cout << "Aruco marker center z coordinate is negative, skipping this marker." << std::endl;
+                    return false;
+                }
             }
+
             else
             {
-                return false; // 转换失败
+                std::cout << "get aruco marker center fail " << std::endl;
+                return false;
             }
-            // cv::drawFrameAxes(color_mat, intrinsics, distortion, rvec, tvec, marker_length_);
-            cv::circle(color_mat, cv::Point(int(src.x), int(src.y)), 5, cv::Scalar(0, 0, 255), -1);
-            break;
+            // break;
         }
     }
-    cv::imshow("color", color_mat);
-    cv::waitKey(25);
-    return true; // 成功获取 ArUco 中心点
+    mat = color_mat.clone(); // 返回处理后的彩图
+    return true;             // 成功获取 ArUco 中心点
 }
 
 // 测试标定
@@ -488,10 +499,10 @@ void Calibration::TestCalibration(const std::string &file_path)
 
         // 获取变换矩阵
         cv::Point3f camera_point3f;
-        if (GetArucoCenter(camera_point3f))
+        cv::Mat color_mat;
+        if (GetArucoCenter(camera_point3f, color_mat))
         {
-            std::cout << "camera point :\n"
-                      << camera_point3f << std::endl;
+            std::cout << "相机坐标 " << "x " << camera_point3f.x << " y " << camera_point3f.y << " z " << camera_point3f.z << std::endl;
             cv::Mat p_camera_homo = (cv::Mat_<double>(4, 1) << camera_point3f.x, camera_point3f.y, camera_point3f.z, 1.0);
             cv::Mat p_end = T_cam2gripper * p_camera_homo;
 
@@ -501,22 +512,26 @@ void Calibration::TestCalibration(const std::string &file_path)
                       << p_base << std::endl;
             cv::Point3f robot_point3f;
 
-            robot_point3f.x = p_base.at<double>(0);
+            robot_point3f.x = p_base.at<double>(0) + 140;
             robot_point3f.y = p_base.at<double>(1);
             robot_point3f.z = p_base.at<double>(2);
+            std::cout << "机器人坐标 " << "x " << robot_point3f.x << " y " << robot_point3f.y << " z " << robot_point3f.z << std::endl;
             // 移动到目标上方
             auto result = episode_.MoveXYZRotation({robot_point3f.x, robot_point3f.y, robot_point3f.z + sucker_length_ + 100}, {180, 0, 90}, "xyz", 1);
+            // auto result = episode_.MoveXYZRotation({robot_point3f.x, robot_point3f.y, 300}, {180, 0, 90}, "xyz", 1);
             double sleep_time = result.get<double>();
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
 
-            // 移动到目标
+            // // 移动到目标
             result = episode_.MoveXYZRotation({robot_point3f.x, robot_point3f.y, robot_point3f.z + sucker_length_ - 8}, {180, 0, 90}, "xyz", 1);
             sleep_time = result.get<double>();
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
-            // 开启气泵
-            episode_.GripperOn();
+            cv::imshow("image", color_mat);
+            cv::waitKey(0);
+            // // 开启气泵
+            // episode_.GripperOn();
 
-            // 移动到目标上方
+            // // 移动到目标上方
             result = episode_.MoveXYZRotation({robot_point3f.x, robot_point3f.y, robot_point3f.z + sucker_length_ + 100}, {180, 0, 90}, "xyz", 1);
             sleep_time = result.get<double>();
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));

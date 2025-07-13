@@ -78,6 +78,11 @@ bool Calibration::GetArucoCenter(cv::Point3f &point3f)
                 point3f.x = target.x;
                 point3f.y = target.y;
                 point3f.z = target.z;
+                if (target.z <= 0.0f)
+                {
+                    std::cerr << "Z coordinate is less than or equal to 0, skipping point." << std::endl;
+                    return false; // 如果 z 小于等于 0，返回 false
+                }
             }
             else
             {
@@ -97,7 +102,7 @@ void Calibration::PerformCalibration()
                                           cv::Point2f(400, 0), cv::Point2f(300, 100), cv::Point2f(250, 0), cv::Point2f(300, -100),
                                           cv::Point2f(430, 0), cv::Point2f(300, 150), cv::Point2f(250, 0), cv::Point2f(300, -150),
                                           cv::Point2f(430, 0), cv::Point2f(300, 200), cv::Point2f(250, 0), cv::Point2f(299, -200)};
-    std::vector<float> z_list{28, 30, 50, 70, 90, 110};
+    std::vector<float> z_list{30, 50, 70, 90, 110};
     std::vector<cv::Point3f> point3f_list;
     for (const auto &z : z_list)
     {
