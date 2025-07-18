@@ -246,6 +246,50 @@ bool Orbbec::OpenDevice()
     is_open_.store(true, std::memory_order_release);
     return true;
 }
+
+bool Orbbec::OpenDeviceSyncAlign()
+{
+    device_ = Orbbec::GetDevice(0);
+    if (device_ == nullptr)
+    {
+
+        is_open_.store(false, std::memory_order_release);
+        return false;
+    }
+
+    pipeline_ = std::make_shared<ob::Pipeline>(device_);
+    // Create a context, for getting devices and sensors
+    context_ = std::make_shared<ob::Context>();
+    // Activate device clock synchronization
+    context_->enableDeviceClockSync(0);
+
+    config_ = std::make_shared<ob::Config>();
+    // config_->enableVideoStream(OB_STREAM_DEPTH, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_Y16);
+    // config_->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_RGB);
+    // 1280x720 is the default resolution for Orbbec cameras
+    config_->enableVideoStream(OB_STREAM_DEPTH, 1280, 720, OB_FPS_ANY, OB_FORMAT_Y16);
+    config_->enableVideoStream(OB_STREAM_COLOR, 1280, 720, OB_FPS_ANY, OB_FORMAT_RGB);
+    config_->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE);
+
+    format_onverter_ = std::make_shared<ob::FormatConvertFilter>();
+    // config_->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE);
+    // Start the pipeline.
+    pipeline_->enableFrameSync();
+    pipeline_->start(config_);
+    // Create a filter to align depth frame to color frame
+    depth2color_align_ = std::make_shared<ob::Align>(OB_STREAM_COLOR);
+
+    // create a filter to align color frame to depth frame
+    color2depth_align_ = std::make_shared<ob::Align>(OB_STREAM_DEPTH);
+
+    for (int i = 0; i < 15; ++i)
+    {
+        auto lost = pipeline_->waitForFrameset(100);
+    }
+    is_open_.store(true, std::memory_order_release);
+    return true;
+}
+
 std::shared_ptr<ob::VideoStreamProfile> Orbbec::GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat)
 {
     if (!is_open_.load(std::memory_order_acquire))
@@ -568,23 +612,26 @@ bool Orbbec::CheckIfSupportHDW2CAlign(std::shared_ptr<ob::StreamProfile> color_s
     auto hwD2CSupportedDepthStreamProfiles = pipeline_->getD2CDepthProfileList(color_stream_profile, ALIGN_D2C_HW_MODE);
     if (hwD2CSupportedDepthStreamProfiles->count() == 0)
     {
+        // If no supported depth stream profiles for hardware depth-to-color alignment found, return false
         return false;
     }
 
     // Iterate through the supported depth stream profiles and check if there is a match with the given depth stream profile
     auto depthVsp = depth_sream_frofile->as<ob::VideoStreamProfile>();
     auto count = hwD2CSupportedDepthStreamProfiles->getCount();
+    // printf("Count of supported depth stream profiles for hardware depth-to-color alignment: %d\n", count);
     for (uint32_t i = 0; i < count; i++)
     {
         auto sp = hwD2CSupportedDepthStreamProfiles->getProfile(i);
         auto vsp = sp->as<ob::VideoStreamProfile>();
+
+        // Check if the width, height, format, and fps of the color stream profile match
         if (vsp->getWidth() == depthVsp->getWidth() && vsp->getHeight() == depthVsp->getHeight() && vsp->getFormat() == depthVsp->getFormat() && vsp->getFps() == depthVsp->getFps())
         {
             // Found a matching depth stream profile, it is means the given stream profiles support hardware depth-to-color alignment
-            std::cout << "Found a matching depth stream profile for hardware depth-to-color alignment: "
-                      << "width: " << vsp->getWidth() << ", height: " << vsp->getHeight()
-                      << ", format: " << vsp->getFormat() << ", fps: " << vsp->getFps() << std::endl;
-
+            // std::cout << "Found a matching depth stream profile for hardware depth-to-color alignment: "
+            //           << "width: " << vsp->getWidth() << ", height: " << vsp->getHeight()
+            //           << ", format: " << vsp->getFormat() << ", fps: " << vsp->getFps() << std::endl;
             return true;
         }
     }
@@ -599,10 +646,14 @@ std::shared_ptr<ob::Config> Orbbec::CreateHwD2CAlignConfig()
     // Iterate through all color and depth stream profiles to find a match for hardware depth-to-color alignment
     auto colorSpCount = coloStreamProfiles->getCount();
     auto depthSpCount = depthStreamProfiles->getCount();
+    int max_width = 0;
+    std::shared_ptr<ob::StreamProfile> d2c_colorProfile = nullptr;
+    std::shared_ptr<ob::StreamProfile> d2c_depthProfile = nullptr;
     for (uint32_t i = 0; i < colorSpCount; i++)
     {
         auto colorProfile = coloStreamProfiles->getProfile(i);
         auto colorVsp = colorProfile->as<ob::VideoStreamProfile>();
+
         for (uint32_t j = 0; j < depthSpCount; j++)
         {
             auto depthProfile = depthStreamProfiles->getProfile(j);
@@ -614,19 +665,37 @@ std::shared_ptr<ob::Config> Orbbec::CreateHwD2CAlignConfig()
                 // If the fps of the color and depth streams are not the same, skip this pair
                 continue;
             }
+            // if (colorVsp->getWidth() != depthVsp->getWidth() != 848)
+            // {
+            //     continue;
+            // }
 
             // Check if the given stream profiles support hardware depth-to-color alignment
             if (CheckIfSupportHDW2CAlign(colorProfile, depthProfile))
             {
+                if (colorVsp->getWidth() > max_width)
+                {
+                    // If the color stream profile has a larger width, update the d2c_colorProfile and d2c_depthProfile
+                    max_width = colorVsp->getWidth();
+                    d2c_colorProfile = colorProfile;
+                    d2c_depthProfile = depthProfile;
+                }
                 // If support, create a config for hardware depth-to-color alignment
-                auto hwD2CAlignConfig = std::make_shared<ob::Config>();
-                hwD2CAlignConfig->enableStream(colorProfile);                                                    // enable color stream
-                hwD2CAlignConfig->enableStream(depthProfile);                                                    // enable depth stream
-                hwD2CAlignConfig->setAlignMode(ALIGN_D2C_HW_MODE);                                               // enable hardware depth-to-color alignment
-                hwD2CAlignConfig->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE); // output frameset with all types of frames
-                return hwD2CAlignConfig;
             }
         }
+    }
+    if (d2c_colorProfile != nullptr && d2c_depthProfile != nullptr)
+    {
+        auto colorVsp = d2c_colorProfile->as<ob::VideoStreamProfile>();
+        std::cout << "Found a matching depth stream profile for hardware depth-to-color alignment: "
+                  << "width: " << colorVsp->getWidth() << ", height: " << colorVsp->getHeight()
+                  << ", format: " << colorVsp->getFormat() << ", fps: " << colorVsp->getFps() << std::endl;
+        auto hwD2CAlignConfig = std::make_shared<ob::Config>();
+        hwD2CAlignConfig->enableStream(d2c_colorProfile);                                                // enable color stream
+        hwD2CAlignConfig->enableStream(d2c_depthProfile);                                                // enable depth stream
+        hwD2CAlignConfig->setAlignMode(ALIGN_D2C_HW_MODE);                                               // enable hardware depth-to-color alignment
+        hwD2CAlignConfig->setFrameAggregateOutputMode(OB_FRAME_AGGREGATE_OUTPUT_ALL_TYPE_FRAME_REQUIRE); // output frameset with all types of frames
+        return hwD2CAlignConfig;
     }
     return nullptr;
 }
@@ -644,19 +713,117 @@ void Orbbec::GetProfilesSupport(OBSensorType sensor_type)
     }
 }
 
-bool Orbbec::TestCamera()
+std::shared_ptr<ob::FrameSet> Orbbec::GetFrameSetSyncC2DAlign()
 {
-
-    OpenDevice();
-    cv::Mat color_mat;
-    while (true)
+    if (!is_open_.load(std::memory_order_acquire))
     {
-        if (GetColorMat(GetFrameSet(), color_mat))
-        {
-            cv::imshow("Color Frame", color_mat);
-            cv::waitKey(25);
-        }
+        // XT_LOGT(ERROR, TAG, "orbbec device not open");
+        return nullptr;
+    }
+    if (color2depth_align_ == nullptr)
+    {
+        std::cerr << "Depth to color align or color to depth align filter is not initialized." << std::endl;
+        return nullptr;
+    }
+    std::shared_ptr<ob::FrameSet> frame_set = GetFrameSet();
+    // auto depth_frame = frame_set->getFrame(OB_FRAME_DEPTH)->as<ob::DepthFrame>();
+
+    auto aligned_frame = color2depth_align_->process(frame_set);
+    if (aligned_frame == nullptr)
+    {
+        std::cerr << "Failed to process frame with color2depth_align filter." << std::endl;
+        return nullptr;
     }
 
+    // auto depth_frame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+    // auto alignedDepthFrame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+    return aligned_frame->as<ob::FrameSet>();
+}
+
+std::shared_ptr<ob::FrameSet> Orbbec::GetFrameSetSyncC2DAlign(std::shared_ptr<ob::FrameSet> frame_set)
+{
+
+    if (frame_set == nullptr)
+    {
+        std::cerr << "Input frame_set is null." << std::endl;
+        return nullptr;
+    }
+
+    if (color2depth_align_ == nullptr)
+    {
+        std::cerr << "Depth to color align or color to depth align filter is not initialized." << std::endl;
+        return nullptr;
+    }
+    auto aligned_frame = color2depth_align_->process(frame_set);
+    if (aligned_frame == nullptr)
+    {
+        std::cerr << "Failed to process frame with color2depth_align filter." << std::endl;
+        return nullptr;
+    }
+    // auto depth_frame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+    // auto alignedDepthFrame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+    return aligned_frame->as<ob::FrameSet>();
+}
+
+bool Orbbec::TestCamera()
+{
+    OpenDeviceSyncAlign();
+    cv::Mat color_mat;
+    // while (true)
+    // {
+    //     if (GetColorMat(GetFrameSet(), color_mat))
+    //     {
+    //         cv::imshow("Color Frame", color_mat);
+    //         cv::waitKey(25);
+    //     }
+    // }
+    std::vector<std::shared_ptr<ob::Frame>> single_srames;
+    while (true)
+    {
+        std::shared_ptr<ob::FrameSet> frame_set = GetFrameSet();
+        // auto depth_frame = frame_set->getFrame(OB_FRAME_DEPTH)->as<ob::DepthFrame>();
+        auto color_frame = frame_set->getFrame(OB_FRAME_COLOR);
+
+        // auto aligned_frame = color2depth_align_->process(frame_set);
+        auto aligned_frame = depth2color_align_->process(frame_set);
+        if (aligned_frame == nullptr)
+        {
+            std::cerr << "Failed to process frame with color2depth_align filter." << std::endl;
+            continue;
+        }
+
+        if (!aligned_frame->is<ob::FrameSet>())
+        {
+            // single frame, add to the list
+            std::cout << "Frame is not a FrameSet, skipping..." << std::endl;
+            single_srames.push_back(aligned_frame);
+        }
+        else
+        {
+            // auto depth_frame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+            // auto alignedDepthFrame = aligned_frame->getFrame(OB_FRAME_DEPTH);
+            auto aligned_frame_set = aligned_frame->as<ob::FrameSet>();
+
+            OBPoint2f source;
+            source.x = 640; // Example pixel x-coordinate
+            source.y = 360; // Example pixel y-coordinate
+            OBPoint3f target;
+            if (!Transformation2dto3d(source, target, aligned_frame_set))
+            {
+                std::cerr << "Transformation from 2D to 3D failed." << std ::endl;
+                continue;
+            }
+            std::cout << "Transformed 2D point (" << source.x << ", " << source.y << ") to 3D point ("
+                      << target.x << ", " << target.y << ", " << target.z << ")" << std::endl;
+            // Process the aligned frame set as needed
+            // For example, you can extract the color frame from the aligned frame set
+
+            if (GetColorMat(aligned_frame_set, color_mat))
+            {
+                cv::imshow("Color Frame", color_mat);
+                cv::waitKey(25);
+            }
+        }
+    }
     return true;
 }

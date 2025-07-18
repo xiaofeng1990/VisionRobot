@@ -6,15 +6,13 @@
 #include "teach_mode/teach_mode.h"
 int main()
 {
-    std::cout << "3dof vision" << std::endl;
-
+    std::cout << "6dof vision" << std::endl;
     Calibration cali;
     cali.InitDevice();
     // cali.PreSample();
     // cali.Sample();
     // cali.PerformCalibration();
     cali.TestCalibration("./calibration/hand_eye_calibration.yml");
-    // Episode client;
-    // client.Test();
+
     return 0;
 }

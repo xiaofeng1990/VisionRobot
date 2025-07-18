@@ -22,6 +22,7 @@ public:
     // 测试标定
     void TestCalibration(const std::string &file_path);
     bool GetArucoCenter(cv::Point3f &point3f, cv::Mat &mat);
+    bool CalibrationCamera();
 
 private:
     void GetJointAngles();
@@ -31,6 +32,13 @@ private:
     std::vector<cv::Mat> LoadMatsFromYML(const std::string &filename);
     void CalcChessboardCorners(cv::Size board_size, float square_size, std::vector<cv::Point3f> &corners);
     void CalculateReprojectionError(std::vector<std::vector<cv::Point3f>> object_points, std::vector<std::vector<cv::Point2f>> image_points, std::vector<cv::Mat> rvecs, std::vector<cv::Mat> tvecs, const cv::Mat &camera_matrix, const cv::Mat &dist_coeffs, std::vector<double> &reprojection_errors);
+    // void CalculateReprojectionError(std::vector<std::vector<cv::Point3f>> object_points, std::vector<std::vector<cv::Point2f>> image_points, std::vector<cv::Mat> rvecs, std::vector<cv::Mat> tvecs, const cv::Mat &camera_matrix, const std::vector<double> dist_coeffs, std::vector<double> &reprojection_errors);
+    double ComputeReprojectionErrors(
+        const std::vector<std::vector<cv::Point3f>> &objectPoints,
+        const std::vector<std::vector<cv::Point2f>> &imagePoints,
+        const std::vector<cv::Mat> &rvecs, const std::vector<cv::Mat> &tvecs,
+        const cv::Mat &cameraMatrix, const cv::Mat &distCoeffs,
+        std::vector<float> &perViewErrors);
 
 private:
     // 预采样点
@@ -47,9 +55,9 @@ private:
     cv::Point2d last_drop_position_; // 上次放置位置
     float marker_length_{0.05};      // ArUco 标记的边长
     float sucker_length_{60};        // 吸盘长度
-    int board_size_with_{11};        // 棋盘格宽度
-    int board_size_height_{8};       // 棋盘格高度
-    float square_size_{20};          // 棋盘格方块大小,单位为毫米
+    int board_size_with_{14};        // 棋盘格宽度
+    int board_size_height_{10};      // 棋盘格高度
+    float square_size_{25};          // 棋盘格方块大小,单位为毫米
     // 标定结果
     // 保存路径
 };

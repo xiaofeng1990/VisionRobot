@@ -19,6 +19,7 @@ public:
   bool OpenDevice(std::string serial_number);
   bool OpenDevice(int index);
   bool OpenDevice();
+  bool OpenDeviceSyncAlign();
   bool CloseDevice();
   std::shared_ptr<ob::VideoStreamProfile> GetColorMat(std::shared_ptr<ob::FrameSet> frame_set, cv::Mat &mat);
   bool GetDepthFrame(cv::Mat &mat);
@@ -34,6 +35,8 @@ public:
   void EnableFrameSync(bool sync);
   void GetProfilesSupport(OBSensorType sensor_type);
   bool TestCamera();
+  std::shared_ptr<ob::FrameSet> GetFrameSetSyncC2DAlign();
+  std::shared_ptr<ob::FrameSet> GetFrameSetSyncC2DAlign(std::shared_ptr<ob::FrameSet> frame_set);
 
 private:
   bool IsPrimaryTypeProperty(OBPropertyItem propertyItem);
@@ -47,6 +50,8 @@ private:
 private:
   /* data */
   ob::Context ob_ctx_;
+  std::shared_ptr<ob::Align> depth2color_align_;
+  std::shared_ptr<ob::Align> color2depth_align_;
   std::shared_ptr<ob::Device> device_{nullptr};
   std::shared_ptr<ob::Pipeline> pipeline_{nullptr};
   std::shared_ptr<ob::Context> context_{nullptr};
