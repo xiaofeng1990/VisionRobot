@@ -31,5 +31,5 @@ int find_first_digit_position(const std::string &str);
 std::vector<std::string> split(const std::string &s, char delimiter);
 
 std::vector<std::string> list_files_in_directory(const std::string &directory_path);
-
+bool remove_file(const std::string &file_path);
 #endif // MASTER_COMMON_XT_UTILS_H_

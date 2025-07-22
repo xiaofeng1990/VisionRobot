@@ -338,3 +338,28 @@ std::vector<std::string> list_files_in_directory(const std::string &directory_pa
     }
     return files;
 }
+
+bool remove_file(const std::string &file_path)
+{
+    if (file_path.empty())
+    {
+        std::cout << "remove file path is empty" << std::endl;
+        return false;
+    }
+    if (access(file_path.c_str(), F_OK) != 0)
+    {
+        std::cout << "file " << file_path.c_str() << " not exist " << std::endl;
+        return true;
+    }
+    if (remove(file_path.c_str()) == 0)
+    {
+
+        std::cout << "remove file " << file_path.c_str() << " ok " << std::endl;
+        return true;
+    }
+    else
+    {
+        std::cout << "remove file " << file_path.c_str() << " fail " << std::endl;
+        return false;
+    }
+}

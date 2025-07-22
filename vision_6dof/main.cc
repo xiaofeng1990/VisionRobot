@@ -12,7 +12,7 @@ int main()
     // cali.PreSample();
     // cali.Sample();
     // cali.PerformCalibration();
-    cali.TestCalibration("./calibration/hand_eye_calibration.yml");
-
+    // cali.TestCalibration("./calibration/hand_eye_calibration.yml");
+    cali.TestCalibrationServoGripper("./calibration/hand_eye_calibration.yml");
     return 0;
 }

@@ -99,7 +99,7 @@ json Episode::MoveLinearXYZRotation(const std::vector<double> &position, const s
     command["params"] = params;
     return SendCommand(command);
 }
-// 开启夹爪
+// 开启气泵
 json Episode::GripperOn()
 {
     json command;
