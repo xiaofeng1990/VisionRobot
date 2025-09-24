@@ -330,8 +330,10 @@ void Calibration::PerformCalibration()
         // cv::waitKey(3000);
     }
     object_points.resize(image_points.size(), object_points[0]);
-    std::cout << "检测到 " << image_points.size() << " 张图像中的棋盘格角点。" << "角点数量: " << image_points[0].size() << std::endl;
-    std::cout << "检测到 " << object_points.size() << " 张图像中的棋盘格角点。" << "角点数量: " << object_points[0].size() << std::endl;
+    std::cout << "检测到 " << image_points.size() << " 张图像中的棋盘格角点。"
+              << "角点数量: " << image_points[0].size() << std::endl;
+    std::cout << "检测到 " << object_points.size() << " 张图像中的棋盘格角点。"
+              << "角点数量: " << object_points[0].size() << std::endl;
 
     // 获取相机内参
     auto frameset = orbbec_.GetFrameSet();
@@ -470,8 +472,10 @@ bool Calibration::CalibrationCamera()
         // cv::waitKey(3000);
     }
     object_points.resize(image_points.size(), object_points[0]);
-    std::cout << "检测到 " << image_points.size() << " 张图像中的棋盘格角点。" << "角点数量: " << image_points[0].size() << std::endl;
-    std::cout << "检测到 " << object_points.size() << " 张图像中的棋盘格角点。" << "角点数量: " << object_points[0].size() << std::endl;
+    std::cout << "检测到 " << image_points.size() << " 张图像中的棋盘格角点。"
+              << "角点数量: " << image_points[0].size() << std::endl;
+    std::cout << "检测到 " << object_points.size() << " 张图像中的棋盘格角点。"
+              << "角点数量: " << object_points[0].size() << std::endl;
     int iFixedPoint = -1; // 不固定点
     cv::Mat cameraMatrix, distCoeffs;
     std::vector<cv::Mat> rvecs, tvecs;
@@ -748,7 +752,8 @@ void Calibration::TestCalibration(const std::string &file_path)
         {
             cv::imshow("image", color_mat);
             cv::waitKey(1000);
-            std::cout << "相机坐标 " << "x " << camera_point3f.x << " y " << camera_point3f.y << " z " << camera_point3f.z << std::endl;
+            std::cout << "相机坐标 "
+                      << "x " << camera_point3f.x << " y " << camera_point3f.y << " z " << camera_point3f.z << std::endl;
             cv::Mat p_camera_homo = (cv::Mat_<double>(4, 1) << camera_point3f.x, camera_point3f.y, camera_point3f.z, 1.0);
             std::cout << "p_camera_homo:\n"
                       << p_camera_homo << std::endl;
@@ -768,7 +773,8 @@ void Calibration::TestCalibration(const std::string &file_path)
             robot_point3f.x = p_base.at<double>(0);
             robot_point3f.y = p_base.at<double>(1);
             robot_point3f.z = p_base.at<double>(2);
-            std::cout << "机器人坐标 " << "x " << robot_point3f.x << " y " << robot_point3f.y << " z " << robot_point3f.z << std::endl;
+            std::cout << "机器人坐标 "
+                      << "x " << robot_point3f.x << " y " << robot_point3f.y << " z " << robot_point3f.z << std::endl;
             // 移动到目标上方
 
             std::cout << " 开始移动" << std::endl;
@@ -903,11 +909,11 @@ void Calibration::TestCalibrationServoGripper(const std::string &file_path)
             robot_point3f.x = T_aruco2base_new.at<double>(0, 3);
             robot_point3f.y = T_aruco2base_new.at<double>(1, 3);
             robot_point3f.z = T_aruco2base_new.at<double>(2, 3);
-            std::cout << "机器人坐标 " << "x " << robot_point3f.x << " y " << robot_point3f.y << " z " << robot_point3f.z << std::endl;
+            std::cout << "机器人坐标 "
+                      << "x " << robot_point3f.x << " y " << robot_point3f.y << " z " << robot_point3f.z << std::endl;
 
             cv::Mat T_x180 = cv::Mat::eye(4, 4, CV_64F);
-            // 设置平移向量
-
+            // 设置平移向量 绕x轴旋转180度
             T_x180.at<double>(1, 1) = -1;
             T_x180.at<double>(2, 2) = -1;
             std::cout << "T_x180:\n"
@@ -1018,7 +1024,8 @@ void Calibration::SaveVectorToText(const std::vector<std::vector<double>> &data,
 void Calibration::SaveMatsToYML(const std::string &filename, const std::vector<cv::Mat> &mats)
 {
     cv::FileStorage fs(filename, cv::FileStorage::WRITE);
-    fs << "mat_sequence" << "["; // 开始序列
+    fs << "mat_sequence"
+       << "["; // 开始序列
 
     for (const auto &mat : mats)
     {
